@@ -20,7 +20,7 @@ struct Campaign {
     uint256 numDonors;                    // number of donors
     address[] donors;                     // list of donors
     uint256 goal;                         // goal amount (for Goal campaigns)
-    uint256 splitCost;                    // cost to split (for Split campaigns)
+    uint256 splitCost;                    // cost to split (for Goal and Split campaigns)
     uint256 maxDonors;                    // maximum number of donors (for PerPerson)
     address recipient;                    // recipient of the funds
     uint256 numDonations;                 // number of donations
@@ -100,19 +100,22 @@ contract Inflection {
         require(campaign.deadline > block.timestamp, "Campaign has expired");
         require(campaign.balance + _amount <= campaign.goal, "Campaign goal has been reached");
 
-        campaign.balance += _amount;
-        campaign.numDonors++;
-        campaign.donors.push(msg.sender);
-        campaignDonations[_campaignId][msg.sender] += _amount;
-        campaign.numDonations++;
+        // campaign.balance += _amount;
+        // campaign.numDonors++;
+        // campaign.donors.push(msg.sender);
+        // campaignDonations[_campaignId][msg.sender] += _amount;
+        // campaign.numDonations++;
 
-        if (campaign.campaignType == CampaignType.Goal) {
+        if (campaign.campaignType == CampaignType.AnythingHelps || campaign.campaignType == CampaignType.Goal) {
             // TODO: check if campaign passed goal amount
         } else if (campaign.campaignType == CampaignType.PerPerson) {
             // TODO: check if all people have donated
         } else if (campaign.campaignType == CampaignType.Split) {
             // TODO: check if total goal amount has been reached
+            // user donate splitCost amount
+            // update splitCost, next user donates updated splitCost
             // update splitCost to decrease as more people donate
+            // don't actually send money to contract, just update splitCost
         }
     }
 
@@ -138,6 +141,23 @@ contract Inflection {
         return campaigns;
     }
 
+    function refundDonors(uint256 _campaignId) public {
+        Campaign storage campaign = campaigns[_campaignId];
+        require(campaign.isActive, "Campaign is not active");
+        require(campaign.deadline > block.timestamp, "Campaign has expired");
+        require(campaign.balance < campaign.goal, "Campaign goal has been reached");
+        
+        mapping(address => uint256) storage donations = campaignDonations[_campaignId];
+        for (uint256 i = 0; i < campaign.donors.length; i++) {
+            address donor = campaign.donors[i];
+            uint256 donationAmount = donations[donor];
+            if (donationAmount > 0) {
+                payable(donor).transfer(donationAmount);
+                donations[donor] = 0;
+            }
+        }
+    }
+
     /**
      * Handles the end of a campaign, based on the campaign type
      * To be triggered at time of deadline
@@ -150,32 +170,33 @@ contract Inflection {
 
         if (campaign.campaignType == CampaignType.AnythingHelps) {
             payable(campaign.recipient).transfer(campaign.balance);
-            campaign.balance = 0;
         } else if (campaign.campaignType == CampaignType.Goal) {
             if (campaign.balance >= campaign.goal) {
                 // Goal reached, funds can be withdrawn by owner
                 payable(campaign.recipient).transfer(campaign.balance);
-                campaign.balance = 0;
             } else {
                 // Goal not reached by deadline, refund donors
-                mapping(address => uint256) storage donations = campaignDonations[_campaignId];
-                // Need to track donors separately to enable refunds
-                for (uint256 i = 0; i < campaign.donors.length; i++) {
-                    address donor = campaign.donors[i];
-                    uint256 donationAmount = donations[donor];
-                    if (donationAmount > 0) {
-                        payable(donor).transfer(donationAmount);
-                        donations[donor] = 0;
-                    }
-                }
-                campaign.balance = 0;
+                refundDonors(_campaignId);
             }
         } else if (campaign.campaignType == CampaignType.PerPerson) {
-            // TODO: Implement per person campaign
+            if (campaign.numDonors == campaign.maxDonors) {
+                // All people have donated, funds can be withdrawn by owner
+                payable(campaign.recipient).transfer(campaign.balance);
+            } else {
+                // Not all people have donated, refund donors
+                refundDonors(_campaignId);
+            }
         } else if (campaign.campaignType == CampaignType.Split) {
-            // TODO: Implement split campaign
+            if (campaign.balance >= campaign.goal) {
+                // Goal reached, funds can be withdrawn by owner
+                payable(campaign.recipient).transfer(campaign.balance);
+            } else {
+                // Goal not reached by deadline, refund donors
+                refundDonors(_campaignId);
+            }
         }
-
+        
+        campaign.balance = 0;
         campaign.isActive = false;
     }
 }
