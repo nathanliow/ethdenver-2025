@@ -4,8 +4,8 @@ pragma solidity ^0.8.13;
 enum CampaignType {
     AnythingHelps,  // Anyone can donate any amount, ends at a deadline
     Goal,           // Reach a goal amount by a deadline, refund if not reached
-    PerPerson,      // Each person pays x amount by deadline
-    Split           // Split a set cost among x people by deadline
+    PerPerson      // Each person pays x amount by deadline
+    // Split           // Split a set cost among x people by deadline
 }
 
 struct Campaign {
@@ -20,8 +20,8 @@ struct Campaign {
     uint256 numDonors;                    // number of donors
     address[] donors;                     // list of donors
     uint256 goal;                         // goal amount (for Goal campaigns)
-    uint256 splitCost;                    // cost to split (for Goal and Split campaigns)
-    uint256 maxDonors;                    // maximum number of donors (for PerPerson)
+    // uint256 splitCost;                    // cost to split (for Goal and Split campaigns)
+    uint256 maxDonors;                    // maximum number of donors (for PerPerson campaigns)
     address recipient;                    // recipient of the funds
     uint256 numDonations;                 // number of donations
 }
@@ -48,7 +48,6 @@ contract Inflection {
         string memory _description,
         address _recipient,
         uint256 _goal,
-        uint256 _splitCost,
         uint256 _deadline,
         uint256 _maxDonors) public {
         require(_deadline > block.timestamp, "Deadline must be in the future");
@@ -56,6 +55,9 @@ contract Inflection {
         require(_recipient != address(0), "Recipient cannot be zero address");
         require(bytes(_name).length > 0, "Name cannot be empty");
         require(bytes(_description).length > 0, "Description cannot be empty");
+        if (_campaignType == CampaignType.PerPerson) {
+            require(_maxDonors > 0, "Max donors must be greater than 0");
+        }
 
         Campaign memory newCampaign = Campaign({
             id: campaignCount,
@@ -66,7 +68,7 @@ contract Inflection {
             description: _description,
             balance: 0,
             goal: _goal,
-            splitCost: _splitCost,
+            // splitCost: _goal,
             deadline: _deadline,
             numDonors: 0,
             donors: new address[](0),
@@ -100,22 +102,33 @@ contract Inflection {
         require(campaign.deadline > block.timestamp, "Campaign has expired");
         require(campaign.balance + _amount <= campaign.goal, "Campaign goal has been reached");
 
-        // campaign.balance += _amount;
-        // campaign.numDonors++;
-        // campaign.donors.push(msg.sender);
-        // campaignDonations[_campaignId][msg.sender] += _amount;
-        // campaign.numDonations++;
+        bool updateBalance = false;
 
-        if (campaign.campaignType == CampaignType.AnythingHelps || campaign.campaignType == CampaignType.Goal) {
-            // TODO: check if campaign passed goal amount
+        if (campaign.campaignType == CampaignType.AnythingHelps) {
+            updateBalance = true;
+        } else if (campaign.campaignType == CampaignType.Goal) {
+            if (campaign.balance + _amount <= campaign.goal) {
+                updateBalance = true;
+            }
         } else if (campaign.campaignType == CampaignType.PerPerson) {
-            // TODO: check if all people have donated
-        } else if (campaign.campaignType == CampaignType.Split) {
-            // TODO: check if total goal amount has been reached
-            // user donate splitCost amount
-            // update splitCost, next user donates updated splitCost
-            // update splitCost to decrease as more people donate
-            // don't actually send money to contract, just update splitCost
+            uint256 costPerPerson = campaign.goal / campaign.maxDonors;
+            if (campaign.numDonors < campaign.maxDonors && _amount >= costPerPerson) {
+                updateBalance = true;
+            }
+        }
+        // } else if (campaign.campaignType == CampaignType.Split) {
+        //     if (campaign.splitCost <= _amount) {
+        //         updateBalance = true;
+        //         campaign.splitCost = campaign.numDonors > 0 ? campaign.goal / campaign.numDonors : 0;
+        //     }
+        // }
+
+        if (updateBalance) {
+            campaign.balance += _amount;
+            campaign.numDonors++;
+            campaign.donors.push(msg.sender);
+            campaignDonations[_campaignId][msg.sender] += _amount;
+            campaign.numDonations++;
         }
     }
 
@@ -143,8 +156,6 @@ contract Inflection {
 
     function refundDonors(uint256 _campaignId) public {
         Campaign storage campaign = campaigns[_campaignId];
-        require(campaign.isActive, "Campaign is not active");
-        require(campaign.deadline > block.timestamp, "Campaign has expired");
         require(campaign.balance < campaign.goal, "Campaign goal has been reached");
         
         mapping(address => uint256) storage donations = campaignDonations[_campaignId];
@@ -186,15 +197,16 @@ contract Inflection {
                 // Not all people have donated, refund donors
                 refundDonors(_campaignId);
             }
-        } else if (campaign.campaignType == CampaignType.Split) {
-            if (campaign.balance >= campaign.goal) {
-                // Goal reached, funds can be withdrawn by owner
-                payable(campaign.recipient).transfer(campaign.balance);
-            } else {
-                // Goal not reached by deadline, refund donors
-                refundDonors(_campaignId);
-            }
         }
+        // } else if (campaign.campaignType == CampaignType.Split) {
+        //     if (campaign.balance >= campaign.goal) {
+        //         // Goal reached, funds can be withdrawn by owner
+        //         payable(campaign.recipient).transfer(campaign.balance);
+        //     } else {
+        //         // Goal not reached by deadline, refund donors
+        //         refundDonors(_campaignId);
+        //     }
+        // }
         
         campaign.balance = 0;
         campaign.isActive = false;
