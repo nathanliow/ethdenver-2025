@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Hero from '@/components/home/Hero';
 import CampaignGrid from '@/components/home/CampaignGrid';
@@ -109,38 +109,8 @@ const sampleCampaigns: Campaign[] = [
 ];
 
 export default function Home() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const oktoClient = useOkto();
- 
-  //@ts-ignore
-  const idToken = useMemo(() => (session ? session.id_token : null), [session]);
-
-  async function handleAuthenticate(): Promise<any> {
-      if (!idToken) {
-          return { result: false, error: "No google login" };
-      }
-      const user = await oktoClient.loginUsingOAuth({
-          idToken: idToken,
-          provider: 'google',
-      });
-      console.log("Authentication Success", user);
-      return JSON.stringify(user);
-  }
- 
-  async function handleLogout() {
-    try {
-        signOut();
-        return { result: "logout success" };
-    } catch (error:any) {
-        return { result: "logout failed" };
-    }
-  }
-
-  useEffect(()=>{
-    if(idToken){
-        handleAuthenticate();
-    }
-  }, [idToken])
 
   return (
     <main>

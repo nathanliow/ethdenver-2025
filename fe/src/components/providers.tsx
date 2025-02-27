@@ -1,10 +1,10 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
+import { SessionProvider, SessionProviderProps } from "next-auth/react";
 import { Hex, Hash, OktoProvider } from "@okto_web3/react-sdk";
 import React from "react";
  
-function AppProvider({ children, session }: { children: React.ReactNode, session: any }) {
+function AppProvider({ children, session }: { children: React.ReactNode, session: SessionProviderProps['session'] }) {
     return (
         <SessionProvider session={session}>
         <OktoProvider

@@ -5,6 +5,7 @@ import AppProvider from "../components/providers";
 import { CampaignProvider } from '@/context/CampaignContext';
 import { getServerSession } from "next-auth";
 import { authOptions } from "./api/auth/[...nextauth]/route";
+import { Toaster } from 'react-hot-toast';
  
 const inter = Inter({ subsets: ["latin"] });
  
@@ -22,6 +23,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <Toaster />
         <AppProvider session={session}>
           <CampaignProvider>
             {children}

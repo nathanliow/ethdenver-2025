@@ -1,7 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { toast } from 'react-hot-toast';
 import Navbar from '@/components/layout/Navbar';
 import Button from '@/components/ui/Button';
 import { useCampaignContext } from '@/context/CampaignContext';
@@ -9,7 +11,34 @@ import { CampaignType } from '@/types/campaign';
 
 export default function CreateCampaignPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const { selectedType, setSelectedType } = useCampaignContext();
+
+  useEffect(() => {
+    // Redirect if user is not authenticated
+    if (status === 'unauthenticated') {
+      console.log('unauthenticated');
+      toast.error('Please sign in to create a campaign', {
+        duration: 3000,
+        position: 'bottom-center',
+      });
+      router.push('/');
+    }
+  }, [status, router]);
+
+  // Show loading state while checking authentication
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+      </div>
+    );
+  }
+
+  // Don't render the page content if not authenticated
+  if (!session) {
+    return null;
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
