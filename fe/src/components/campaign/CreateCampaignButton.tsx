@@ -5,6 +5,7 @@ import Button from '../ui/Button';
 import CampaignTypeModal from './CampaignTypeModal';
 import { CampaignType } from '@/types/campaign';
 import { useRouter } from 'next/navigation';
+import { useCampaignContext } from '@/context/CampaignContext';
 
 type CreateCampaignButtonProps = {
   className?: string;
@@ -13,10 +14,12 @@ type CreateCampaignButtonProps = {
 export default function CreateCampaignButton({ className }: CreateCampaignButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
+  const { setSelectedType } = useCampaignContext();
 
   const handleCampaignTypeSelect = (type: CampaignType) => {
-    // Navigate to the campaign creation page with the selected type
-    router.push(`/create-campaign?type=${type}`);
+    setSelectedType(type);
+    setIsModalOpen(false);
+    router.push('/create-campaign');
   };
 
   return (

@@ -4,7 +4,6 @@ import React, { useEffect, useMemo } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Hero from '@/components/home/Hero';
 import CampaignGrid from '@/components/home/CampaignGrid';
-import Footer from '@/components/layout/Footer';
 import { Campaign, CampaignType } from '@/types/campaign';
 import { signOut, useSession } from 'next-auth/react';
 import { useOkto } from '@okto_web3/react-sdk';
@@ -148,7 +147,6 @@ export default function Home() {
       <Navbar />
       <Hero />
       <CampaignGrid campaigns={sampleCampaigns} />
-      <Footer />
     </main>
   );
 } 

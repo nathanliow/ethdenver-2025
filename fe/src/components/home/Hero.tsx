@@ -1,5 +1,6 @@
 import React from 'react';
 import Button from '../ui/Button';
+import CreateCampaignButton from '../campaign/CreateCampaignButton';
 
 export default function Hero() {
   return (
@@ -18,7 +19,7 @@ export default function Hero() {
           Create campaigns, donate to causes, and make an impact with blockchain technology.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button size="lg">Create Campaign</Button>
+          <CreateCampaignButton />
           <Button variant="secondary" size="lg">Learn More</Button>
         </div>
       </div>

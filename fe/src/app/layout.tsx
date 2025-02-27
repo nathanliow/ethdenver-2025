@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import AppProvider from "../components/providers";
+import { CampaignProvider } from '@/context/CampaignContext';
 import { getServerSession } from "next-auth";
 import { authOptions } from "./api/auth/[...nextauth]/route";
  
@@ -21,7 +22,11 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AppProvider session={session}>{children}</AppProvider>
+        <AppProvider session={session}>
+          <CampaignProvider>
+            {children}
+          </CampaignProvider>
+        </AppProvider>
       </body>
     </html>
   );
