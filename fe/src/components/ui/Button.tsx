@@ -6,6 +6,7 @@ type ButtonProps = {
   size?: 'sm' | 'md' | 'lg';
   onClick?: () => void;
   className?: string;
+  isDisabled?: boolean;
 };
 
 export default function Button({ 
@@ -13,7 +14,8 @@ export default function Button({
   variant = 'primary', 
   size = 'md',
   onClick,
-  className = ''
+  className = '',
+  isDisabled = false
 }: ButtonProps) {
   const baseClasses = 'font-medium rounded-2xl transition-colors';
   
@@ -32,6 +34,7 @@ export default function Button({
     <button
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       onClick={onClick}
+      disabled={isDisabled}
     >
       {children}
     </button>

@@ -14,7 +14,8 @@
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-hot-toast": "^2.5.2"
+    "react-hot-toast": "^2.5.2",
+    "thirdweb": "^5.89.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

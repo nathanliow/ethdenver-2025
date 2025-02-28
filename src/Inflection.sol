@@ -166,13 +166,10 @@ contract Inflection {
     }
 
     // ------------------------------------------------------------------------
-    // Record Donation (No Token Transfer)
+    // Update Campaign (No Token Transfer)
     // ------------------------------------------------------------------------
     /**
-     * @notice Record a donation made *outside* this contract (e.g., user directly
-     *         transferred tokens to this contract address). This function
-     *         updates the campaign's internal accounting, but does not
-     *         transfer tokens.
+     * @notice Update campaign balance and donor count.
      *
      * @param _campaignId Which campaign the donation is for
      * @param _amount     How many tokens (in smallest units) were donated
@@ -186,7 +183,7 @@ contract Inflection {
      *  - For PerPerson/SplitFixedCost, each donor must meet the required share
      *    and cannot pledge multiple times if your logic prohibits that.
      */
-    function recordDonation(
+    function updateCampaign(
         uint256 _campaignId,
         uint256 _amount,
         address _donor
@@ -198,33 +195,33 @@ contract Inflection {
         require(_amount > 0, "Must record > 0");
         require(_donor != address(0), "Donor cannot be zero");
 
-        // For "Goal" or "PerPerson", do not exceed campaign.goal
-        if (
-            campaign.campaignType == CampaignType.Goal ||
-            campaign.campaignType == CampaignType.PerPerson
-        ) {
-            require(
-                campaign.balance + _amount <= campaign.goal,
-                "Donation exceeds goal"
-            );
-        }
+        // // For "Goal" or "PerPerson", do not exceed campaign.goal
+        // if (
+        //     campaign.campaignType == CampaignType.Goal ||
+        //     campaign.campaignType == CampaignType.PerPerson
+        // ) {
+        //     require(
+        //         campaign.balance + _amount <= campaign.goal,
+        //         "Donation exceeds goal"
+        //     );
+        // }
 
-        if (campaign.campaignType == CampaignType.PerPerson) {
-            // Each donor must pay at least goal / maxDonors
-            uint256 costPerPerson = campaign.goal / campaign.maxDonors;
-            require(_amount >= costPerPerson, "Below required share");
-            require(campaign.numDonors < campaign.maxDonors, "Max donors reached");
-        } 
-        else if (campaign.campaignType == CampaignType.SplitFixedCost) {
-            require(campaign.numDonors < campaign.maxDonors, "Max donors reached");
-            uint256 costPerPerson = campaign.goal / campaign.maxDonors;
-            require(_amount >= costPerPerson, "Below your split share");
-            // Optionally forbid multiple pledges from same donor
-            require(
-                campaignDonations[_campaignId][_donor] == 0,
-                "Donor already pledged"
-            );
-        }
+        // if (campaign.campaignType == CampaignType.PerPerson) {
+        //     // Each donor must pay at least goal / maxDonors
+        //     uint256 costPerPerson = campaign.goal / campaign.maxDonors;
+        //     require(_amount >= costPerPerson, "Below required share");
+        //     require(campaign.numDonors < campaign.maxDonors, "Max donors reached");
+        // } 
+        // else if (campaign.campaignType == CampaignType.SplitFixedCost) {
+        //     require(campaign.numDonors < campaign.maxDonors, "Max donors reached");
+        //     uint256 costPerPerson = campaign.goal / campaign.maxDonors;
+        //     require(_amount >= costPerPerson, "Below your split share");
+        //     // Optionally forbid multiple pledges from same donor
+        //     require(
+        //         campaignDonations[_campaignId][_donor] == 0,
+        //         "Donor already pledged"
+        //     );
+        // }
 
         // Update campaign balance
         campaign.balance += _amount;

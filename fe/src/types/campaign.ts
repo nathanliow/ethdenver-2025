@@ -1,7 +1,8 @@
 export enum CampaignType {
-  AnythingHelps = 0, // Anyone can donate any amount, ends at a deadline
-  Goal = 1,          // Reach a goal amount by a deadline, refund if not reached
-  PerPerson = 2      // Each person pays x amount by deadline
+  AnythingHelps = 0,   // Anyone can donate any amount, ends at a deadline
+  Goal = 1,            // Reach a goal amount by a deadline, refund if not reached
+  PerPerson = 2,       // Each person pays x amount by deadline
+  SplitFixedCost = 3   // Must reach 'goal'; each paying >= goal/maxDonors
 }
 
 export interface Campaign {
