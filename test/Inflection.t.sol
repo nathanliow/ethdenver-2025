@@ -23,15 +23,15 @@ contract InflectionTest is Test {
             "image.jpg",
             "Description",
             recipient,
-            100 ether,  // goal
+            100 ether, // goal
             deadline,
-            0           // maxDonors
+            0 // maxDonors
         );
 
         // Test donation
         vm.deal(address(this), 1 ether);
         inflection.donate{value: 1 ether}(0, 1 ether);
-        
+
         Campaign memory campaign = inflection.getCampaign(0);
         assertEq(campaign.balance, 1 ether);
         assertEq(campaign.numDonors, 1);
@@ -45,21 +45,21 @@ contract InflectionTest is Test {
             "image.jpg",
             "Description",
             recipient,
-            10 ether,   // goal
+            10 ether, // goal
             deadline,
-            0           // maxDonors
+            0 // maxDonors
         );
 
         // Test successful goal completion
         address donor1 = address(0x2);
         address donor2 = address(0x3);
-        
+
         vm.deal(donor1, 6 ether);
         vm.deal(donor2, 4 ether);
-        
+
         vm.prank(donor1);
         inflection.donate{value: 6 ether}(0, 6 ether);
-        
+
         vm.prank(donor2);
         inflection.donate{value: 4 ether}(0, 4 ether);
 
@@ -76,14 +76,14 @@ contract InflectionTest is Test {
             "image.jpg",
             "Description",
             recipient,
-            6 ether,    // goal (2 ether per person)
+            6 ether, // goal (2 ether per person)
             deadline,
-            3           // maxDonors
+            3 // maxDonors
         );
 
         // Test three people donating equal amounts
         address[] memory donors = new address[](3);
-        for(uint i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < 3; i++) {
             donors[i] = address(uint160(i + 1));
             vm.deal(donors[i], 2 ether);
             vm.prank(donors[i]);
@@ -103,9 +103,9 @@ contract InflectionTest is Test {
             "image.jpg",
             "Description",
             recipient,
-            10 ether,   // goal
+            10 ether, // goal
             deadline,
-            0           // maxDonors
+            0 // maxDonors
         );
 
         // Make partial donation

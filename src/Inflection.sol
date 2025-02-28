@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
+
 /**
  * @title Inflection (Stablecoin-Only, No donate() Function)
  * @notice A "inflection" style crowdfunding contract that:
@@ -22,7 +24,7 @@ interface IERC20 {
     function transfer(address recipient, uint256 amount) external returns (bool);
 }
 
-contract Inflection {
+contract Inflection is KeeperCompatibleInterface {
     // ------------------------------------------------------------------------
     // Enums & Data Structures
     // ------------------------------------------------------------------------
@@ -154,7 +156,7 @@ contract Inflection {
         return newArr;
     }
 
-    
+
 
     // ------------------------------------------------------------------------
     // Owner Functions
