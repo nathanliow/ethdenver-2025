@@ -83,6 +83,79 @@ contract Inflection {
         whitelistedTokens[0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48] = true; // USDC Mainnet
     }
 
+    // chainlink shit
+        /**
+     * @notice Called by Chainlink nodes off-chain. We must decide if upkeep is needed.
+     * @dev In a naive approach, we scan for an active campaign whose deadline is past.
+     *      If found, we set upkeepNeeded = true and encode the campaign IDs in performData.
+     */
+    function checkUpkeep(
+        bytes calldata /* checkData */
+    )
+        external
+        view
+        override
+        returns (bool upkeepNeeded, bytes memory performData)
+    {
+        // We'll gather the IDs of any campaigns that need to end
+        uint256[] memory overdueIds = new uint256[](campaignCount);
+        uint256 index = 0;
+
+        for (uint256 i = 0; i < campaignCount; i++) {
+            Campaign storage c = campaigns[i];
+            if (c.isActive && block.timestamp >= c.deadline) {
+                overdueIds[index] = c.id;
+                index++;
+                // NOTE: For gas reasons, you might break after finding a certain # of campaigns.
+            }
+        }
+
+        // If index > 0, we have at least one campaign to end
+        if (index > 0) {
+            upkeepNeeded = true;
+            // We only encode the relevant portion of overdueIds
+            bytes memory encoded = abi.encode(sliceArray(overdueIds, index));
+            performData = encoded;
+        } else {
+            upkeepNeeded = false;
+            performData = "";
+        }
+    }
+
+    /**
+     * @notice Called by Chainlink on-chain if checkUpkeep returns true.
+     * @dev We decode the IDs of the overdue campaigns and call handleCampaignEnd.
+     */
+    function performUpkeep(bytes calldata performData) external override {
+        uint256[] memory ids = abi.decode(performData, (uint256[]));
+        for (uint256 i = 0; i < ids.length; i++) {
+            // safety check
+            if (ids[i] < campaignCount) {
+                Campaign storage c = campaigns[ids[i]];
+                if (c.isActive && block.timestamp >= c.deadline) {
+                    handleCampaignEnd(ids[i]);
+                }
+            }
+        }
+    }
+
+    /**
+     * @dev Helper to slice the overdueIds array down to `length`.
+     */
+    function sliceArray(uint256[] memory array, uint256 length)
+        internal
+        pure
+        returns (uint256[] memory)
+    {
+        uint256[] memory newArr = new uint256[](length);
+        for (uint256 i = 0; i < length; i++) {
+            newArr[i] = array[i];
+        }
+        return newArr;
+    }
+
+    
+
     // ------------------------------------------------------------------------
     // Owner Functions
     // ------------------------------------------------------------------------
