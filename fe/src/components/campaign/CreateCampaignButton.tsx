@@ -25,7 +25,7 @@ export default function CreateCampaignButton({ className }: CreateCampaignButton
   return (
     <>
       <Button 
-        className={className} 
+        className={`bg-gradient-to-r from-indigo-500 to-blue-500 hover:opacity-90 transition-all duration-300 shadow-lg rounded-2xl ${className}`}
         onClick={() => setIsModalOpen(true)}
       >
         Create Campaign

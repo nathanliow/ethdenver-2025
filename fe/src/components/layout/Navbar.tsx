@@ -19,8 +19,13 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-transparent py-6 px-8">
-      <div className="container mx-auto flex justify-between items-center">
+    <nav className="fixed top-0 left-0 right-0 z-40">
+      {/* Glassmorphic background */}
+      <div className="absolute inset-0 backdrop-blur-sm bg-gradient-to-b from-black/60 to-black/40 border-b border-white/10" 
+        style={{ transform: 'translate3d(0, 0, 0)' }} // Creates new stacking context
+      />
+      
+      <div className="relative container mx-auto flex justify-between items-center py-6 px-8">
         <Link href="/" className="text-white font-bold text-2xl">
           Inflection
         </Link>

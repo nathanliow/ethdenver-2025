@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import AppProvider from "../components/providers";
 import { CampaignProvider } from '@/context/CampaignContext';
@@ -7,7 +7,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "./api/auth/[...nextauth]/route";
 import { Toaster } from 'react-hot-toast';
  
-const inter = Inter({ subsets: ["latin"] });
+const dmSans = DM_Sans({ 
+  subsets: ["latin"],
+  weight: ['400', '500', '700'],
+  display: 'swap',
+});
  
 export const metadata: Metadata = {
   title: "Okto React SDK with Google Auth",
@@ -22,7 +26,7 @@ export default async function RootLayout({
   const session = await getServerSession(authOptions);
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={dmSans.className}>
         <Toaster />
         <AppProvider session={session}>
           <CampaignProvider>
