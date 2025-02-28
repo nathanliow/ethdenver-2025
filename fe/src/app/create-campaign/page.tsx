@@ -8,6 +8,7 @@ import Navbar from '@/components/layout/Navbar';
 import Button from '@/components/ui/Button';
 import { useCampaignContext } from '@/context/CampaignContext';
 import { CampaignType } from '@/types/campaign';
+import ImageUpload from '@/components/ui/ImageUpload';
 
 export default function CreateCampaignPage() {
   const router = useRouter();
@@ -109,6 +110,8 @@ export default function CreateCampaignPage() {
                     placeholder="Tell your story and explain your campaign's purpose"
                   />
                 </div>
+
+                <ImageUpload/>
               </div>
 
               {/* Campaign Details */}
@@ -185,7 +188,9 @@ export default function CreateCampaignPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button 
+                    onClick={handleSubmit}
+                  >
                     Create Campaign
                   </Button>
                 </div>
