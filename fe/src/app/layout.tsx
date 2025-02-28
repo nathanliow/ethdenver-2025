@@ -14,8 +14,8 @@ const dmSans = DM_Sans({
 });
  
 export const metadata: Metadata = {
-  title: "Okto React SDK with Google Auth",
-  description: "Next.js app integrated with Okto SDK and Google Authentication",
+  title: "Inflection",
+  description: "Inflection is a platform for running group funding campaigns with four different campaign types",
 };
  
 export default async function RootLayout({

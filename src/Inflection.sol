@@ -2,110 +2,128 @@
 pragma solidity ^0.8.13;
 
 /**
- * @title Inflection
- * @notice A contract for running "inflection" style group funding campaigns
- *         with four different campaign types:
- *         1) AnythingHelps    - No minimum; any amount tips automatically at deadline
- *         2) Goal (MakeOrBreak) - Must reach a total funding goal
- *         3) PerPerson (Fixed Price) - Must get all X contributors paying a fixed amount
- *         4) SplitFixedCost   - A total cost is split equally among up to maxDonors
+ * @title Inflection (Stablecoin-Only, No donate() Function)
+ * @notice A "inflection" style crowdfunding contract that:
+ *         1. Only accepts ERC20 stablecoins (no ETH).
+ *         2. Has four campaign types: AnythingHelps, Goal, PerPerson, SplitFixedCost.
+ *         3. Uses a 1.5% (configurable) fee on successful campaigns.
+ *         4. Does NOT actively transferFrom donors. Instead, donors must
+ *            transfer tokens externally, then call recordDonation() to update state.
  *
- * Contributors only pay if the campaign "tips." Otherwise, they get a refund.
- * A 1.5% fee is collected by the contract owner on campaigns that tip.
+ * Usage Flow:
+ *  1) Deploy contract.
+ *  2) createCampaign(...) with a stablecoin address and desired parameters.
+ *  3) Donor sends tokens directly to this contract via token.transfer(address(this), amount).
+ *  4) Then call recordDonation(campaignId, amount, donor) to associate that deposit.
+ *  5) After deadline, call handleCampaignEnd(...) to finalize (payout or refund).
  */
-contract Inflection {
-    // --------------------------
-    // ENUMS & STRUCTS
-    // --------------------------
 
+interface IERC20 {
+    function transfer(address recipient, uint256 amount) external returns (bool);
+}
+
+contract Inflection {
+    // ------------------------------------------------------------------------
+    // Enums & Data Structures
+    // ------------------------------------------------------------------------
     enum CampaignType {
         AnythingHelps,   // Tips automatically at deadline (no minimum)
-        Goal,            // Must reach a total goal or refund
-        PerPerson,       // Must have maxDonors each paying a fixed share
-        SplitFixedCost   // A fixed cost to split among up to maxDonors
+        Goal,            // Must reach or exceed 'goal' total
+        PerPerson,       // Must have exactly maxDonors, each paying >= cost share
+        SplitFixedCost   // Must reach 'goal'; each paying >= goal/maxDonors
     }
 
     struct Campaign {
         uint256 id;               // Unique ID
-        CampaignType campaignType; // Which type of campaign
+        CampaignType campaignType; // Which type
         bool isActive;            // Whether campaign is still active
-        string name;              // Name of the campaign
-        string image;             // (Optional) image link
+        address token;            // ERC20 token used for donations
+        string name;              // Name/title
+        string image;             // Optional image link
         string description;       // Short description
-        uint256 balance;          // Amount of ETH currently raised
-        uint256 deadline;         // Unix timestamp of campaign deadline
-        uint256 numDonors;        // Number of unique donors (addresses)
-        address[] donors;         // List of unique donor addresses
-        uint256 goal;             // Funding goal (used for Goal / SplitFixedCost)
-        uint256 maxDonors;        // For PerPerson / SplitFixedCost
-        address recipient;        // Recipient of the funds if campaign tips
-        uint256 numDonations;     // Number of donation transactions
+        uint256 balance;          // Tracked total of contributions
+        uint256 deadline;         // Unix timestamp (end time)
+        uint256 numDonors;        // Number of unique donors
+        address[] donors;         // List of donor addresses
+        uint256 goal;             // For Goal, SplitFixedCost, etc.
+        uint256 maxDonors;        // For PerPerson, SplitFixedCost
+        address recipient;        // Address receiving funds on success
+        uint256 numDonations;     // Number of recordDonation() calls
     }
 
-    // --------------------------
-    // STATE VARIABLES
-    // --------------------------
+    // ------------------------------------------------------------------------
+    // State Variables
+    // ------------------------------------------------------------------------
+    address public owner;                     // Contract owner (fee collector)
+    uint256 private campaignCount;            // Count of campaigns created
+    Campaign[] private campaigns;             // Array of all campaigns
 
-    address public owner;
-    uint256 private campaignCount;
-    Campaign[] private campaigns;
-
-    // Mapping: campaign ID -> (donor address -> amount donated)
+    // campaignId -> (donor -> amount)
     mapping(uint256 => mapping(address => uint256)) public campaignDonations;
 
-    // Fee set to 1.5% by default (15 basis points = 15/1000)
+    // Fee in basis points; default 15 => 1.5%
     uint256 public feeBps = 15;
 
-    // --------------------------
-    // MODIFIERS & CONSTRUCTOR
-    // --------------------------
+    // Add to state variables section
+    mapping(address => bool) public whitelistedTokens;
 
+    // ------------------------------------------------------------------------
+    // Modifiers & Constructor
+    // ------------------------------------------------------------------------
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can call");
+        require(msg.sender == owner, "Only owner");
         _;
     }
 
     constructor() {
         owner = msg.sender;
+        
+        // Whitelist RLUSD and USDC
+        whitelistedTokens[0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD] = true; // RLUSD
+        whitelistedTokens[0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48] = true; // USDC Mainnet
     }
 
-    // --------------------------
-    // OWNER FUNCTIONS
-    // --------------------------
-
+    // ------------------------------------------------------------------------
+    // Owner Functions
+    // ------------------------------------------------------------------------
     /**
-     * @notice Allows the owner to update the fee in basis points
-     * @param _feeBps Fee in basis points (e.g., 15 => 1.5%)
+     * @notice Adjust fee in basis points. e.g., 15 => 1.5%, 100 => 10%, etc.
      */
     function setFee(uint256 _feeBps) external onlyOwner {
         feeBps = _feeBps;
     }
 
     /**
-     * @notice Delete a campaign by ID (onlyOwner). It sets the struct to the "default" value.
-     * @dev    This does not fully remove it from the array but zeroes it out.
+     * @notice Delete a campaign by ID, clearing its data.
+     * @dev    This does not remove the index from the array.
      */
     function deleteCampaign(uint256 _campaignId) external onlyOwner {
-        require(_campaignId < campaignCount, "Campaign does not exist");
+        require(_campaignId < campaignCount, "Invalid campaignId");
         delete campaigns[_campaignId];
     }
 
-    // --------------------------
-    // CAMPAIGN CREATION
-    // --------------------------
+    // Add owner function to manage whitelisted tokens
+    function setTokenWhitelisted(address _token, bool _isWhitelisted) external onlyOwner {
+        whitelistedTokens[_token] = _isWhitelisted;
+    }
 
+    // ------------------------------------------------------------------------
+    // Campaign Creation
+    // ------------------------------------------------------------------------
     /**
-     * @notice Create a new campaign
-     * @param _campaignType Enum specifying the campaign style
-     * @param _name A short name for the campaign
-     * @param _image Optional image link or IPFS hash
-     * @param _description Short description
-     * @param _recipient Address that receives funds if campaign tips
-     * @param _goal The total funding goal (used in certain campaign types)
-     * @param _deadline Unix timestamp after which the campaign ends
-     * @param _maxDonors The maximum number of donors (for PerPerson / SplitFixedCost)
+     * @dev Create a new campaign. Must specify a valid (nonzero) ERC20 token address.
+     * @param _token ERC20 token used for donations (e.g., RLUSD on testnet)
+     * @param _campaignType Type of tipping campaign
+     * @param _name A short name/title
+     * @param _image An optional image link / IPFS
+     * @param _description A short description
+     * @param _recipient Who receives funds on success
+     * @param _goal The total goal in smallest units (must be > 0)
+     * @param _deadline Unix timestamp in the future
+     * @param _maxDonors For PerPerson / SplitFixedCost campaigns
      */
     function createCampaign(
+        address _token,
         CampaignType _campaignType,
         string calldata _name,
         string calldata _image,
@@ -115,12 +133,13 @@ contract Inflection {
         uint256 _deadline,
         uint256 _maxDonors
     ) external {
-        require(_deadline > block.timestamp, "Deadline must be in future");
+        require(_token != address(0), "Token cannot be zero address");
+        require(whitelistedTokens[_token], "Token not whitelisted");
+        require(bytes(_name).length > 0, "Name required");
+        require(bytes(_description).length > 0, "Description required");
+        require(_recipient != address(0), "Recipient cannot be zero");
+        require(_deadline > block.timestamp, "Deadline must be future");
         require(_goal > 0, "Goal must be > 0");
-        require(_recipient != address(0), "Recipient cannot be zero address");
-        require(bytes(_name).length > 0, "Name cannot be empty");
-        require(bytes(_description).length > 0, "Description cannot be empty");
-
         if (_campaignType == CampaignType.PerPerson || _campaignType == CampaignType.SplitFixedCost) {
             require(_maxDonors > 0, "maxDonors must be > 0");
         }
@@ -129,6 +148,7 @@ contract Inflection {
             id: campaignCount,
             campaignType: _campaignType,
             isActive: true,
+            token: _token,
             name: _name,
             image: _image,
             description: _description,
@@ -141,90 +161,105 @@ contract Inflection {
             recipient: _recipient,
             numDonations: 0
         });
-
         campaigns.push(newCampaign);
         campaignCount++;
     }
 
-    // --------------------------
-    // DONATIONS
-    // --------------------------
-
+    // ------------------------------------------------------------------------
+    // Record Donation (No Token Transfer)
+    // ------------------------------------------------------------------------
     /**
-     * @notice Contribute to a campaign by sending ETH.
-     * @dev    Make sure to set msg.value in your transaction.
-     * @param _campaignId ID of the campaign to donate to
+     * @notice Record a donation made *outside* this contract (e.g., user directly
+     *         transferred tokens to this contract address). This function
+     *         updates the campaign's internal accounting, but does not
+     *         transfer tokens.
+     *
+     * @param _campaignId Which campaign the donation is for
+     * @param _amount     How many tokens (in smallest units) were donated
+     * @param _donor      Address that made the off-chain transfer
+     *
+     * Requirements:
+     *  - The campaign is active (not ended).
+     *  - block.timestamp < campaign.deadline.
+     *  - _amount > 0
+     *  - Must not exceed certain limits based on campaign type.
+     *  - For PerPerson/SplitFixedCost, each donor must meet the required share
+     *    and cannot pledge multiple times if your logic prohibits that.
      */
-    function donate(uint256 _campaignId) external payable {
-        require(_campaignId < campaignCount, "Campaign does not exist");
-        require(msg.value > 0, "Must send > 0 ETH");
-
+    function recordDonation(
+        uint256 _campaignId,
+        uint256 _amount,
+        address _donor
+    ) external {
+        require(_campaignId < campaignCount, "Invalid campaignId");
         Campaign storage campaign = campaigns[_campaignId];
-        require(campaign.isActive, "Campaign is not active");
-        require(block.timestamp < campaign.deadline, "Campaign deadline reached");
+        require(campaign.isActive, "Campaign ended or inactive");
+        require(block.timestamp < campaign.deadline, "Deadline passed");
+        require(_amount > 0, "Must record > 0");
+        require(_donor != address(0), "Donor cannot be zero");
 
-        // For "Goal" or "PerPerson" campaigns, do not allow going over the goal
+        // For "Goal" or "PerPerson", do not exceed campaign.goal
         if (
-            campaign.campaignType == CampaignType.Goal || 
+            campaign.campaignType == CampaignType.Goal ||
             campaign.campaignType == CampaignType.PerPerson
         ) {
             require(
-                campaign.balance + msg.value <= campaign.goal, 
-                "Donation would exceed the campaign goal"
+                campaign.balance + _amount <= campaign.goal,
+                "Donation exceeds goal"
             );
         }
 
         if (campaign.campaignType == CampaignType.PerPerson) {
-            // Each donor must pay at least goal/maxDonors
+            // Each donor must pay at least goal / maxDonors
             uint256 costPerPerson = campaign.goal / campaign.maxDonors;
-            require(msg.value >= costPerPerson, "Must send at least the per-person cost");
+            require(_amount >= costPerPerson, "Below required share");
             require(campaign.numDonors < campaign.maxDonors, "Max donors reached");
-        } else if (campaign.campaignType == CampaignType.SplitFixedCost) {
-            // Similar constraint: each donor should pay at least goal/maxDonors
+        } 
+        else if (campaign.campaignType == CampaignType.SplitFixedCost) {
             require(campaign.numDonors < campaign.maxDonors, "Max donors reached");
             uint256 costPerPerson = campaign.goal / campaign.maxDonors;
-            require(msg.value >= costPerPerson, "Not enough to cover your share");
-            // Ensure the same donor doesn't pledge multiple times
-            require(campaignDonations[_campaignId][msg.sender] == 0, "Already pledged");
+            require(_amount >= costPerPerson, "Below your split share");
+            // Optionally forbid multiple pledges from same donor
+            require(
+                campaignDonations[_campaignId][_donor] == 0,
+                "Donor already pledged"
+            );
         }
 
-        // Update campaign state
-        campaign.balance += msg.value;
+        // Update campaign balance
+        campaign.balance += _amount;
 
-        // If this is the first time this donor has donated to this campaign
-        if (campaignDonations[_campaignId][msg.sender] == 0) {
+        // If donor is new, increment donor count and store them
+        if (campaignDonations[_campaignId][_donor] == 0) {
             campaign.numDonors++;
-            campaign.donors.push(msg.sender);
+            campaign.donors.push(_donor);
         }
 
-        campaignDonations[_campaignId][msg.sender] += msg.value;
+        campaignDonations[_campaignId][_donor] += _amount;
         campaign.numDonations++;
     }
 
-    // --------------------------
-    // ENDING / REFUNDING
-    // --------------------------
-
+    // ------------------------------------------------------------------------
+    // End Campaign (Payout or Refund)
+    // ------------------------------------------------------------------------
     /**
-     * @notice Handle finalizing the campaign after its deadline. 
-     *         Transfers funds to the recipient if it "tipped"; otherwise refunds donors.
-     * @param _campaignId Campaign ID to finalize
+     * @notice Once deadline is reached, finalize the campaign:
+     *         - If "tips," pay out minus fee.
+     *         - Otherwise, refund donors.
      */
     function handleCampaignEnd(uint256 _campaignId) external {
-        require(_campaignId < campaignCount, "Campaign does not exist");
-
+        require(_campaignId < campaignCount, "Invalid campaignId");
         Campaign storage campaign = campaigns[_campaignId];
-        require(campaign.isActive, "Campaign already finalized");
-        require(block.timestamp >= campaign.deadline, "Deadline not reached yet");
 
-        // If the campaign tips, we send the funds (minus fee) to recipient.
-        // Otherwise, we refund donors. Then we set isActive = false.
+        require(campaign.isActive, "Campaign ended");
+        require(block.timestamp >= campaign.deadline, "Deadline not reached");
+
         if (campaign.campaignType == CampaignType.AnythingHelps) {
-            // Always tips at the end
+            // Always pays out
             _payoutAndClose(campaign);
         } 
         else if (campaign.campaignType == CampaignType.Goal) {
-            // Must meet or exceed the goal
+            // Must reach >= goal
             if (campaign.balance >= campaign.goal) {
                 _payoutAndClose(campaign);
             } else {
@@ -232,7 +267,7 @@ contract Inflection {
             }
         }
         else if (campaign.campaignType == CampaignType.PerPerson) {
-            // Must have all maxDonors contributing
+            // Must have exactly maxDonors
             if (campaign.numDonors == campaign.maxDonors) {
                 _payoutAndClose(campaign);
             } else {
@@ -240,7 +275,7 @@ contract Inflection {
             }
         }
         else if (campaign.campaignType == CampaignType.SplitFixedCost) {
-            // Must meet or exceed total cost
+            // Must reach or exceed 'goal'
             if (campaign.balance >= campaign.goal) {
                 _payoutAndClose(campaign);
             } else {
@@ -250,84 +285,68 @@ contract Inflection {
     }
 
     /**
-     * @notice Refund all donors in a campaign, if it fails.
-     * @dev    This can be called directly or from handleCampaignEnd().
-     * @param _campaignId The campaign ID to refund
+     * @notice Force refunds if needed. Possibly used to end early or if
+     *         the campaign obviously won't meet requirements before deadline.
      */
     function refundDonors(uint256 _campaignId) external {
-        require(_campaignId < campaignCount, "Campaign does not exist");
+        require(_campaignId < campaignCount, "Invalid campaignId");
         Campaign storage campaign = campaigns[_campaignId];
-        require(campaign.isActive, "Campaign already ended");
+        require(campaign.isActive, "Campaign ended");
 
         _refundAndClose(campaign);
     }
 
-    // --------------------------
-    // INTERNAL HELPERS
-    // --------------------------
-
+    // ------------------------------------------------------------------------
+    // Internal Helpers
+    // ------------------------------------------------------------------------
     /**
-     * @dev Sends full campaign.balance to the recipient minus the fee,
-     *      and marks the campaign as ended.
+     * @dev Pay out to recipient minus fee, then end the campaign.
      */
-    function _payoutAndClose(Campaign storage campaign) internal {
-        uint256 total = campaign.balance;
-        // fee = total * feeBps / 1000
-        uint256 feeAmount = (total * feeBps) / 1000;
+    function _payoutAndClose(Campaign storage _campaign) internal {
+        uint256 total = _campaign.balance;
+        uint256 feeAmount = (total * feeBps) / 1000; // e.g. 1.5% if feeBps=15
+        IERC20 token = IERC20(_campaign.token);
 
-        // Send fee to owner
-        payable(owner).transfer(feeAmount);
-        // Send remainder to recipient
-        payable(campaign.recipient).transfer(total - feeAmount);
+        // Transfer fee
+        require(token.transfer(owner, feeAmount), "Fee transfer failed");
+        // Transfer remainder
+        require(token.transfer(_campaign.recipient, total - feeAmount), "Payout failed");
 
-        // Mark campaign as ended
-        campaign.isActive = false;
-        campaign.balance = 0;
+        _campaign.isActive = false;
+        _campaign.balance = 0;
     }
 
     /**
-     * @dev Refund each donor the exact amount they contributed,
-     *      then close the campaign.
+     * @dev Refund each donor's recorded donation, then end the campaign.
      */
-    function _refundAndClose(Campaign storage campaign) internal {
-        for (uint256 i = 0; i < campaign.donors.length; i++) {
-            address donor = campaign.donors[i];
-            uint256 amount = campaignDonations[campaign.id][donor];
-            if (amount > 0) {
-                campaignDonations[campaign.id][donor] = 0;
-                payable(donor).transfer(amount);
+    function _refundAndClose(Campaign storage _campaign) internal {
+        uint256 cId = _campaign.id;
+        IERC20 token = IERC20(_campaign.token);
+
+        for (uint256 i = 0; i < _campaign.donors.length; i++) {
+            address donor = _campaign.donors[i];
+            uint256 donated = campaignDonations[cId][donor];
+            if (donated > 0) {
+                campaignDonations[cId][donor] = 0; 
+                require(token.transfer(donor, donated), "Refund failed");
             }
         }
-        campaign.isActive = false;
-        campaign.balance = 0;
+        _campaign.isActive = false;
+        _campaign.balance = 0;
     }
 
-    // --------------------------
-    // VIEW FUNCTIONS
-    // --------------------------
-
-    /**
-     * @notice Get details of a specific campaign by ID
-     */
-    function getCampaign(uint256 _campaignId)
-        external
-        view
-        returns (Campaign memory)
-    {
-        require(_campaignId < campaignCount, "Campaign does not exist");
+    // ------------------------------------------------------------------------
+    // View Functions
+    // ------------------------------------------------------------------------
+    function getCampaign(uint256 _campaignId) external view returns (Campaign memory) {
+        require(_campaignId < campaignCount, "Invalid campaignId");
         return campaigns[_campaignId];
     }
 
-    /**
-     * @notice Returns the entire array of campaigns
-     */
     function getAllCampaigns() external view returns (Campaign[] memory) {
         return campaigns;
     }
 
-    /**
-     * @notice Returns total count of created campaigns
-     */
     function getCampaignCount() external view returns (uint256) {
         return campaignCount;
     }
