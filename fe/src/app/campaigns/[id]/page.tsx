@@ -1,39 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import Navbar from '@/components/layout/Navbar';
 import Button from '@/components/ui/Button';
 import { Campaign, CampaignType } from '@/types/campaign';
-import { useOkto } from '@okto_web3/react-sdk';
-import { tokenTransfer } from '@okto_web3/react-sdk';
-import {
-  getContract,
-  prepareContractCall,
-  toUnits,
-} from "thirdweb";
-import { sepolia } from "thirdweb/chains";
-import { createThirdwebClient } from "@thirdweb";
+import { getAccount, useOkto } from '@okto_web3/react-sdk';
+import { handleDonation } from './donationHandler';
 
-export default function CampaignPage() {
+export default function CampaignsPage() {
   const router = useRouter();
   const params = useParams();
   const oktoClient = useOkto();
   const { id } = params;
   
-  // Set up your ThirdWeb client (add this to your imports or define globally)
-  const THIRDWEB_CLIENT = createThirdwebClient({
-    clientId: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID || "",
-    chain: sepolia,
-  });
+  const [account, setAccount] = useState<any>(null);
+  const [accountAddress, setAccountAddress] = useState<string>('');
 
-  // Get contract reference
-  const inflectionContract = getContract({
-    address: "0xYOUR_ACTUAL_CONTRACT_ADDRESS_HERE", // Replace with actual contract address
-    chain: sepolia, // Use the appropriate chain
-    client: THIRDWEB_CLIENT,
-  });
+  // Move the account fetching to a useEffect
+  useEffect(() => {
+    async function fetchAccount() {
+      if (oktoClient) {
+        const acc = await getAccount(oktoClient);
+        setAccount(acc);
+        setAccountAddress(acc[0].address);
+      }
+    }
+    fetchAccount();
+  }, [oktoClient]);
 
   // Early return if no id exists
   if (!id) {
@@ -67,11 +62,6 @@ export default function CampaignPage() {
   const [donationAmount, setDonationAmount] = useState<string>('');
   const [selectedToken, setSelectedToken] = useState<'USDC' | 'RLUSD'>('USDC');
 
-  const TOKEN_ADDRESSES = {
-    USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    RLUSD: "0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD"
-  };
-
   const validateAmount = (amount: string): boolean => {
     const parsedAmount = parseFloat(amount);
     const decimals = selectedToken === 'USDC' ? 6 : 18;
@@ -95,47 +85,29 @@ export default function CampaignPage() {
     return true;
   };
 
-  async function handleDonation() {
+  async function onDonateClick() {
     if (!validateAmount(donationAmount)) {
       setDonationStatus('error');
       setTimeout(() => setDonationStatus('idle'), 3000);
       return;
     }
 
+    if (!oktoClient) {
+      setErrorMessage('Please connect your wallet');
+      setDonationStatus('error');
+      setTimeout(() => setDonationStatus('idle'), 3000);
+      return;
+    }
+    
     setDonationStatus('loading');
     try {
-      // Convert amount to smallest units (6 decimals for USDC, 18 for RLUSD)
-      const decimals = selectedToken === 'USDC' ? 6 : 18;
-      const amountInSmallestUnits = parseFloat(donationAmount) * Math.pow(10, decimals);
-      
-      // Get the correct token address based on selection
-      const tokenAddress = TOKEN_ADDRESSES[selectedToken];
-      
-      // First: Execute the token transfer through Okto
-      const transferParams = {
-        amount: BigInt(Math.floor(amountInSmallestUnits)),
-        recipient: campaign.recipient as `0x${string}`,
-        token: tokenAddress as `0x${string}`,
-        caip2Id: "eip155:1" // Adjust based on your network
-      };
-      
-      const jobId = await tokenTransfer(oktoClient, transferParams);
-      console.log('Donation transfer jobId:', jobId);
-
-      // Step 2: Update campaign state in smart contract using ThirdWeb's new API
-      const transaction = prepareContractCall({
-        contract: inflectionContract,
-        method: "function updateCampaign(uint256 _campaignId, uint256 _amount, address _donor)",
-        params: [
-          campaign.id,                       // _campaignId
-          BigInt(Math.floor(amountInSmallestUnits)), // _amount
-          oktoClient.address                 // _donor
-        ],
-      });
-
-      // Execute the transaction
-      const result = await transaction.execute();
-      console.log("Campaign updated:", result);
+      await handleDonation(
+        oktoClient,
+        campaign,
+        donationAmount,
+        selectedToken,
+        accountAddress
+      );
 
       setDonationStatus('success');
       setDonationAmount(''); // Clear input after success
@@ -267,7 +239,7 @@ export default function CampaignPage() {
                   donationStatus === 'success' ? 'bg-green-600 hover:bg-green-700' :
                   donationStatus === 'error' ? 'bg-red-600 hover:bg-red-700' : ''
                 }`}
-                onClick={handleDonation}
+                onClick={onDonateClick}
                 isDisabled={donationStatus === 'loading'}
               >
                 {getDonateButtonContent()}
