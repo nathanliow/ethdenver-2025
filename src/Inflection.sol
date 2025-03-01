@@ -58,6 +58,7 @@ contract Inflection is AutomationCompatibleInterface {
         uint256 maxDonors; // used in PerPerson or SplitFixedCost
         address recipient;
         uint256 numDonations; // how many calls to updateCampaign or pledge
+        address creator;
     }
 
     address public owner;
@@ -210,7 +211,8 @@ contract Inflection is AutomationCompatibleInterface {
             goal: _goal,
             maxDonors: _maxDonors,
             recipient: _recipient,
-            numDonations: 0
+            numDonations: 0,
+            creator: msg.sender
         });
 
         campaigns.push(newC);

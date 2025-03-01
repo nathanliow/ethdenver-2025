@@ -1,26 +1,61 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import CampaignCard from '@/components/campaign/CampaignCard';
 import { Campaign } from '@/types/campaign';
+import { createThirdwebClient, getContract } from "thirdweb";
+import { useReadContract } from "thirdweb/react";
+import { NETWORK_CONFIG } from '@/Consts';
+import { baseSepolia } from "thirdweb/chains";
 
+export const client = createThirdwebClient({ 
+  clientId: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID || "...", 
+  secretKey: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_SECRET || "..."
+});
+
+// Contract configuration
 export default function CampaignsPage() {
-  // TODO: Replace with actual campaign data fetching
-  const campaigns: Campaign[] = [
-    // Temporary mock data
-    {
-      id: '1',
-      name: 'Example Campaign 1',
-      description: 'This is an example campaign description.',
-      targetAmount: 5,
-      currentAmount: 2,
-      deadline: new Date('2024-12-31'),
-      creator: '0x123...',
-      imageUrl: '/placeholder.jpg',
-    },
-    // Add more mock campaigns as needed
-  ];
+  const [selectedNetwork, setSelectedNetwork] = useState<'BASE_SEPOLIA'>('BASE_SEPOLIA');
+
+  // Read all campaigns from the contract
+  const contract = getContract({
+    client: client, 
+    chain: baseSepolia,
+    address: NETWORK_CONFIG[selectedNetwork].contractAddress,
+  });
+
+  console.log("contract", contract);
+
+  const { data: campaignsData, isLoading } = useReadContract({
+    contract: contract,
+    method: "function getAllCampaigns() external view returns (Campaign[])",
+    params: [],
+  });
+  console.log("campaignsData", campaignsData);
+  // Transform contract data to our Campaign type
+  const campaigns = React.useMemo(() => {
+    if (!campaignsData) return [] as Campaign[];
+    
+    return campaignsData.map((campaign: any) => ({
+      id: campaign.id.toString(),
+      campaignType: campaign.campaignType,
+      isActive: new Date() < new Date(Number(campaign.deadline) * 1000),
+      token: campaign.token,
+      name: campaign.name,
+      image: campaign.image || '/placeholder.jpg',
+      description: campaign.description,
+      balance: Number(campaign.balance),
+      deadline: new Date(Number(campaign.deadline) * 1000), // Convert from Unix timestamp
+      numDonors: Number(campaign.numDonors),
+      donors: campaign.donors,
+      goal: Number(campaign.goal),
+      maxDonors: Number(campaign.maxDonors),
+      recipient: campaign.recipient,
+      numDonations: Number(campaign.numDonations),
+      creator: campaign.creator,
+    }));
+  }, [campaignsData]);
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -54,15 +89,32 @@ export default function CampaignsPage() {
             </div>
           </div>
 
+          {/* Loading State */}
+          {isLoading && (
+            <div className="text-center py-16">
+              <p className="text-gray-600 dark:text-gray-400">
+                Loading campaigns...
+              </p>
+            </div>
+          )}
+
           {/* Campaigns Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {campaigns.map((campaign) => (
-              <CampaignCard key={campaign.id} campaign={campaign} />
-            ))}
-          </div>
+          {!isLoading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {campaigns.map((campaign) => (
+                <CampaignCard 
+                  key={campaign.id} 
+                  campaign={{
+                    ...campaign,
+                    deadline: Number(new Date(campaign.deadline).getTime())
+                  }} 
+                />
+              ))}
+            </div>
+          )}
 
           {/* Empty State */}
-          {campaigns.length === 0 && (
+          {!isLoading && campaigns.length === 0 && (
             <div className="text-center py-16">
               <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
                 No campaigns found

@@ -63,13 +63,6 @@ export default function CampaignsPage() {
   const [selectedToken, setSelectedToken] = useState<'USDC' | 'RLUSD'>('USDC');
   const [selectedNetwork, setSelectedNetwork] = useState<'BASE_SEPOLIA'>('BASE_SEPOLIA');
 
-  // Update when network changes to ensure valid token selection
-  useEffect(() => {
-    if (selectedNetwork === 'BASE_SEPOLIA' && selectedToken === 'RLUSD') {
-      setSelectedToken('USDC');
-    }
-  }, [selectedNetwork]);
-
   const validateAmount = (amount: string): boolean => {
     const parsedAmount = parseFloat(amount);
     const decimals = selectedToken === 'USDC' ? 6 : 18;

@@ -5,9 +5,6 @@ export async function POST(req: NextRequest) {
     // Get the request body
     const body = await req.json();
     const { subject_address, claims } = body;
-    
-    console.log('Attempting to issue credential for:', subject_address);
-    console.log('With claims:', claims);
 
     // Validate inputs
     if (!subject_address) {
@@ -41,13 +38,9 @@ export async function POST(req: NextRequest) {
         }
       })
     });
-    
-    // Log the response status
-    console.log('API Response Status:', response.status);
-    
+        
     // Get the response
     const data = await response.json();
-    console.log('API Response Data:', data);
     
     if (!response.ok) {
       throw new Error(`API responded with status ${response.status}: ${JSON.stringify(data)}`);

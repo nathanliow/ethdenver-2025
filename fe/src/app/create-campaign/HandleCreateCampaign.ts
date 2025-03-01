@@ -36,6 +36,7 @@ export const HandleCreateCampaign = async ({
   const networkConfig = NETWORK_CONFIG[selectedNetwork];
   const tokenAddress = TOKEN_ADDRESSES[selectedNetwork]?.[selectedToken] ?? TOKEN_ADDRESSES[selectedNetwork]?.USDC;
   // Define the ABI for createCampaign function
+
   const abi = [{
     "inputs": [
       {"name": "_token", "type": "address"},
@@ -71,6 +72,8 @@ export const HandleCreateCampaign = async ({
     ]
   });
 
+  console.log("data", data);
+
   // Create raw transaction parameters
   const rawTxParams = {
     caip2Id: networkConfig.caip2Id,
@@ -80,6 +83,8 @@ export const HandleCreateCampaign = async ({
       data,
     }
   };
+
+  console.log("rawTxParams", rawTxParams);
 
   try {
     // Send the transaction using Okto

@@ -6,12 +6,10 @@ import { CampaignProvider } from '@/context/CampaignContext';
 import { getServerSession } from "next-auth";
 import { authOptions } from "./api/auth/[...nextauth]/route";
 import { Toaster } from 'react-hot-toast';
+import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
+import OnchainKitClient from "./OnchainKitClient";
  
-const dmSans = DM_Sans({ 
-  subsets: ["latin"],
-  weight: ['400', '500', '700'],
-  display: 'swap',
-});
+const dmSans = DM_Sans({ subsets: ["latin"] });
  
 export const metadata: Metadata = {
   title: "Inflection",
@@ -28,11 +26,15 @@ export default async function RootLayout({
     <html lang="en">
       <body className={dmSans.className}>
         <Toaster />
-        <AppProvider session={session}>
-          <CampaignProvider>
-            {children}
-          </CampaignProvider>
-        </AppProvider>
+        <ReactQueryProvider>
+          <OnchainKitClient>
+            <AppProvider session={session}>
+              <CampaignProvider>
+                {children}
+              </CampaignProvider>
+            </AppProvider>
+          </OnchainKitClient>
+        </ReactQueryProvider>
       </body>
     </html>
   );

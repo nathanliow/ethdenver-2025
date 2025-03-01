@@ -9,6 +9,7 @@ export interface Campaign {
   id: number;
   campaignType: CampaignType;
   isActive: boolean;
+  token: string;
   name: string;
   image: string;
   description: string;
@@ -20,4 +21,5 @@ export interface Campaign {
   maxDonors: number;
   recipient: string;
   numDonations: number;
+  creator: string;
 } 

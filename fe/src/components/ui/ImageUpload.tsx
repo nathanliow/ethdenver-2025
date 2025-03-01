@@ -9,7 +9,11 @@ interface UploadedFile {
   url: string;
 }
 
-const ImageUpload = () => {
+interface ImageUploadProps {
+  onImageUploaded: (url: string) => void;
+}
+
+const ImageUpload = ({ onImageUploaded }: ImageUploadProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
@@ -45,10 +49,12 @@ const ImageUpload = () => {
                      result.alreadyCertified?.blobId;
                    
       if (blobId) {
+        const imageUrl = `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${blobId}`;
         setUploadedFile({
           blobId,
-          url: `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${blobId}`
+          url: imageUrl
         });
+        onImageUploaded(imageUrl);
       } else {
         throw new Error("Could not find blobId in response");
       }

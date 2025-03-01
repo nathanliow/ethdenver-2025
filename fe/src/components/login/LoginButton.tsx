@@ -102,14 +102,12 @@ export default function LoginButton({ className }: LoginButtonProps) {
       });
       
       const data = await response.json();
-      console.log('Credential API Response:', data);
       
       if (!response.ok) {
         throw new Error(data.error || 'Failed to issue credential');
       }
       
       setCredentialResult(data);
-      console.log("Credential issued successfully:", data);
 
       // Add this after successful credential issuance
       if (data.credential) {

@@ -1,10 +1,10 @@
 export const NETWORK_CONFIG = {
     ETH_SEPOLIA: {
-        contractAddress: "0x8319e57503F2ccc3678659de69e32e4f54F1E96f",
+        contractAddress: "0xd397a6908f3f5166bC4633fBAB52399476dAe6fA",
         caip2Id: "eip155:11155111"
     },
     BASE_SEPOLIA: {
-        contractAddress: "0xD9FEfDC357E46D0e75a45326A1Fc0433bEe056F9",
+        contractAddress: "0x9f4f638A42Db57630e669fC2E7e4CC67f0F9E50f",
         caip2Id: "eip155:84532"
     }
 };

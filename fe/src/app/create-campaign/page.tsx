@@ -56,13 +56,6 @@ export default function CreateCampaignPage() {
     getOktoAddress();
   }, [oktoClient]);
 
-  // Add effect to ensure valid token selection when network changes
-  useEffect(() => {
-    if (selectedNetwork === 'BASE_SEPOLIA' && selectedToken === 'RLUSD') {
-      setSelectedToken('USDC');
-    }
-  }, [selectedNetwork]);
-
   // Show loading state while checking authentication
   if (status === 'loading') {
     return (
@@ -88,7 +81,7 @@ export default function CreateCampaignPage() {
     try {
       const deadlineTimestamp = new Date(deadline).getTime() / 1000;
       
-      await HandleCreateCampaign({
+      const jobId = await HandleCreateCampaign({
         oktoClient,
         selectedToken: selectedToken,
         selectedNetwork: selectedNetwork,
@@ -180,7 +173,9 @@ export default function CreateCampaignPage() {
                   />
                 </div>
 
-                <ImageUpload/>
+                <div>
+                  <ImageUpload onImageUploaded={(url) => setImage(url)}/>
+                </div>
               </div>
 
               {/* Campaign Details */}
