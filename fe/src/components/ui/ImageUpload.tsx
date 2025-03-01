@@ -62,8 +62,6 @@ const ImageUpload = () => {
     }
   }
 
-  console.log(uploadedFile);
-
   return (
     <div className="space-y-4">
       <div className="space-y-4">

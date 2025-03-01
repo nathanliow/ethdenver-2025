@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
@@ -9,11 +9,25 @@ import Button from '@/components/ui/Button';
 import { useCampaignContext } from '@/context/CampaignContext';
 import { CampaignType } from '@/types/campaign';
 import ImageUpload from '@/components/ui/ImageUpload';
+import { HandleCreateCampaign } from './HandleCreateCampaign';
+import { getAccount, useOkto } from '@okto_web3/react-sdk';
 
 export default function CreateCampaignPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const { selectedType, setSelectedType } = useCampaignContext();
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [image, setImage] = useState('');
+  const [deadline, setDeadline] = useState('');
+  const [goalAmount, setGoalAmount] = useState('');
+  const [perPersonAmount, setPerPersonAmount] = useState('');
+  const [maxDonors, setMaxDonors] = useState('');
+  const [selectedNetwork, setSelectedNetwork] = useState<'BASE_SEPOLIA'>('BASE_SEPOLIA');
+  const [selectedToken, setSelectedToken] = useState<'USDC' | 'RLUSD'>('USDC');
+  const oktoClient = useOkto();
+  const [recipientAddress, setRecipientAddress] = useState('');
+  const [creatorAddress, setCreatorAddress] = useState('');
 
   useEffect(() => {
     // Redirect if user is not authenticated
@@ -26,6 +40,28 @@ export default function CreateCampaignPage() {
       router.push('/');
     }
   }, [status, router]);
+
+  useEffect(() => {
+    const getOktoAddress = async () => {
+      if (oktoClient) {
+        try {
+          const account = await getAccount(oktoClient);
+          setCreatorAddress(account[0].address);
+        } catch (error) {
+          console.error('Error getting Okto address:', error);
+          toast.error('Failed to get wallet address');
+        }
+      }
+    };
+    getOktoAddress();
+  }, [oktoClient]);
+
+  // Add effect to ensure valid token selection when network changes
+  useEffect(() => {
+    if (selectedNetwork === 'BASE_SEPOLIA' && selectedToken === 'RLUSD') {
+      setSelectedToken('USDC');
+    }
+  }, [selectedNetwork]);
 
   // Show loading state while checking authentication
   if (status === 'loading') {
@@ -41,9 +77,38 @@ export default function CreateCampaignPage() {
     return null;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push('/campaigns');
+
+    if (!oktoClient || !creatorAddress || !recipientAddress) {
+      toast.error('Please connect your wallet and provide recipient address');
+      return;
+    }
+
+    try {
+      const deadlineTimestamp = new Date(deadline).getTime() / 1000;
+      
+      await HandleCreateCampaign({
+        oktoClient,
+        selectedToken: selectedToken,
+        selectedNetwork: selectedNetwork,
+        campaignType: selectedType,
+        creatorAddress: creatorAddress as `0x${string}`,
+        name,
+        image,
+        description,
+        recipient: recipientAddress,
+        deadline: deadlineTimestamp,      
+        goal: selectedType === CampaignType.Goal ? BigInt(parseFloat(goalAmount) * 1e18) : BigInt(0),
+        maxDonors: selectedType === CampaignType.PerPerson ? parseInt(maxDonors) : 0,
+      });
+
+      toast.success('Campaign created successfully!');
+      router.push('/campaigns');
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+      toast.error('Failed to create campaign');
+    }
   };
 
   const campaignTypes = [
@@ -95,6 +160,8 @@ export default function CreateCampaignPage() {
                   </label>
                   <input 
                     type="text" 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     placeholder="Give your campaign a memorable name"
                   />
@@ -105,6 +172,8 @@ export default function CreateCampaignPage() {
                     Description
                   </label>
                   <textarea 
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     rows={4}
                     placeholder="Tell your story and explain your campaign's purpose"
@@ -118,20 +187,62 @@ export default function CreateCampaignPage() {
               <div className="p-8 space-y-6">
                 <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-white">Campaign Details</h2>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Recipient Address
+                  </label>
+                  <input 
+                    type="text" 
+                    value={recipientAddress}
+                    onChange={(e) => setRecipientAddress(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Enter the recipient's wallet address"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Accepted Token
+                  </label>
+                  <div className="flex gap-4">
+                  
+                  <select
+                    value={selectedToken}
+                    onChange={(e) => setSelectedToken(e.target.value as 'USDC' | 'RLUSD')}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="USDC">USDC</option>
+                    <option value="RLUSD">RLUSD</option>
+                  </select>
+
+                  <select
+                    value={selectedNetwork}
+                    onChange={(e) => setSelectedNetwork(e.target.value as 'BASE_SEPOLIA')}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="BASE_SEPOLIA">Base Sepolia</option>
+                  </select>
+                  </div>
+                </div>
+                
+
                 {selectedType === CampaignType.Goal && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Goal Amount (ETH)
+                      Goal Amount (USD)
                     </label>
                     <div className="relative">
                       <input 
                         type="number" 
-                        step="0.01"
+                        value={goalAmount}
+                        onChange={(e) => setGoalAmount(e.target.value)}
+                        min="0"
+                        step="1"
                         className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         placeholder="Enter your fundraising goal"
                       />
                       <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500">ETH</span>
+                        <span className="text-gray-500">USD</span>
                       </div>
                     </div>
                   </div>
@@ -141,17 +252,20 @@ export default function CreateCampaignPage() {
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Amount per Person (ETH)
+                        Amount per Person (USD)
                       </label>
                       <div className="relative">
                         <input 
                           type="number"
-                          step="0.01"
+                          value={perPersonAmount}
+                          onChange={(e) => setPerPersonAmount(e.target.value)}
+                          min="0"
+                          step="1"
                           className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                           placeholder="Enter amount per person"
                         />
                         <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                          <span className="text-gray-500">ETH</span>
+                          <span className="text-gray-500">USD</span>
                         </div>
                       </div>
                     </div>
@@ -161,6 +275,8 @@ export default function CreateCampaignPage() {
                       </label>
                       <input 
                         type="number"
+                        value={maxDonors}
+                        onChange={(e) => setMaxDonors(e.target.value)}
                         className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         placeholder="Set the maximum number of contributors"
                       />
@@ -174,6 +290,8 @@ export default function CreateCampaignPage() {
                   </label>
                   <input 
                     type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>

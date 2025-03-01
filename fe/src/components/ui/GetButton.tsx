@@ -17,13 +17,11 @@ const GetButton: React.FC<GetButtonProps> = ({ title, apiFn }) => {
     const handleButtonClick = () => {
         apiFn(oktoClient)
         .then((result: any) => {
-            console.log(`${title}:`, result);
             const resultData = JSON.stringify(result, null, 2);
             setResultData(resultData !== "null" ? resultData : "No result");
             setModalVisible(true);
         })
         .catch((error: any) => {
-            console.error(`${title} error:`, error);
             setResultData(`error: ${error}`);
             setModalVisible(true);
         });

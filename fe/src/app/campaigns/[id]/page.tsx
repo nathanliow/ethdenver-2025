@@ -7,7 +7,7 @@ import Navbar from '@/components/layout/Navbar';
 import Button from '@/components/ui/Button';
 import { Campaign, CampaignType } from '@/types/campaign';
 import { getAccount, useOkto } from '@okto_web3/react-sdk';
-import { handleDonation } from './donationHandler';
+import { HandleDonation } from './HandleDonation';
 
 export default function CampaignsPage() {
   const router = useRouter();
@@ -61,6 +61,14 @@ export default function CampaignsPage() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [donationAmount, setDonationAmount] = useState<string>('');
   const [selectedToken, setSelectedToken] = useState<'USDC' | 'RLUSD'>('USDC');
+  const [selectedNetwork, setSelectedNetwork] = useState<'BASE_SEPOLIA'>('BASE_SEPOLIA');
+
+  // Update when network changes to ensure valid token selection
+  useEffect(() => {
+    if (selectedNetwork === 'BASE_SEPOLIA' && selectedToken === 'RLUSD') {
+      setSelectedToken('USDC');
+    }
+  }, [selectedNetwork]);
 
   const validateAmount = (amount: string): boolean => {
     const parsedAmount = parseFloat(amount);
@@ -101,12 +109,13 @@ export default function CampaignsPage() {
     
     setDonationStatus('loading');
     try {
-      await handleDonation(
+      await HandleDonation(
         oktoClient,
         campaign,
         donationAmount,
+        selectedNetwork,
         selectedToken,
-        accountAddress
+        accountAddress,
       );
 
       setDonationStatus('success');
@@ -205,12 +214,21 @@ export default function CampaignsPage() {
                   <select
                     value={selectedToken}
                     onChange={(e) => setSelectedToken(e.target.value as 'USDC' | 'RLUSD')}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                    className="px-4 py-2 w-[100px] border border-gray-300 dark:border-gray-600 rounded-lg 
                              focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
                     disabled={donationStatus === 'loading'}
                   >
                     <option value="USDC">USDC</option>
                     <option value="RLUSD">RLUSD</option>
+                  </select>
+                  <select
+                    value={selectedNetwork}
+                    onChange={(e) => setSelectedNetwork(e.target.value as 'BASE_SEPOLIA')}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                             focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
+                    disabled={donationStatus === 'loading'}
+                  >
+                    <option value="BASE_SEPOLIA">Base</option>
                   </select>
                 </div>
                 {errorMessage && (

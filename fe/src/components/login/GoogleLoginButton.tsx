@@ -16,7 +16,6 @@ export function GoogleLoginButton({ className }: { className?: string }) {
                 idToken,
                 provider: "google",
             });
-            console.log("Okto Authentication successful:", user);
             return user;
         } catch (error) {
             console.error("Okto Authentication failed:", error);
@@ -50,7 +49,7 @@ export function GoogleLoginButton({ className }: { className?: string }) {
             className={`${className}`}
             variant="secondary"
             onClick={handleLogin}
-            disabled={isAuthenticating}
+            isDisabled={isAuthenticating}
         >
             {isAuthenticating ? 'Connecting...' : 'Login with Google'}
         </Button>

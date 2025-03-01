@@ -2,18 +2,13 @@ import { OktoClient } from '@okto_web3/react-sdk';
 import { tokenTransfer, evmRawTransaction } from '@okto_web3/react-sdk';
 import { encodeFunctionData } from 'viem';
 import { Campaign } from '@/types/campaign';
+import { NETWORK_CONFIG, TOKEN_ADDRESSES } from '@/Consts';
 
-const CONTRACT_ADDRESS = "0xYOUR_ACTUAL_CONTRACT_ADDRESS_HERE";
-
-const TOKEN_ADDRESSES = {
-  USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-  RLUSD: "0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD"
-};
-
-export const handleDonation = async (
+export const HandleDonation = async (
   oktoClient: OktoClient,
   campaign: Campaign,
   donationAmount: string,
+  selectedNetwork: 'BASE_SEPOLIA',
   selectedToken: 'USDC' | 'RLUSD',
   accountAddress: string
 ) => {
@@ -22,7 +17,7 @@ export const handleDonation = async (
   const amountInSmallestUnits = parseFloat(donationAmount) * Math.pow(10, decimals);
   
   // Get the correct token address based on selection
-  const tokenAddress = TOKEN_ADDRESSES[selectedToken];
+  const tokenAddress = TOKEN_ADDRESSES[selectedNetwork][selectedToken];
   
   // Execute the token transfer through Okto
   const transferParams = {
@@ -31,6 +26,8 @@ export const handleDonation = async (
     token: tokenAddress as `0x${string}`,
     caip2Id: "eip155:1" // Adjust based on your network
   };
+
+  console.log('Transfer params:', transferParams);
   
   const transferJobId = await tokenTransfer(oktoClient, transferParams);
   console.log('Donation transfer jobId:', transferJobId);
@@ -62,7 +59,7 @@ export const handleDonation = async (
     caip2Id: "eip155:1", // Adjust based on your network
     transaction: {
       from: accountAddress as `0x${string}`,
-      to: CONTRACT_ADDRESS as `0x${string}`,
+      to: NETWORK_CONFIG[selectedNetwork].contractAddress as `0x${string}`,
       data,
     }
   };
