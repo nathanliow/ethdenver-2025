@@ -21,6 +21,8 @@ export default function LoginButton({ className }: LoginButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [accountInfo, setAccountInfo] = useState<Wallet[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isIssuingCredential, setIsIssuingCredential] = useState(false);
+  const [credentialResult, setCredentialResult] = useState<any>(null);
   const { data: session } = useSession() as { data: ExtendedSession | null };
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -39,6 +41,11 @@ export default function LoginButton({ className }: LoginButtonProps) {
           // Then get the account info
           const account = await getAccount(oktoClient);
           setAccountInfo(account);
+          
+          // Automatically issue credential after successful login
+          if (account && account[0]?.address) {
+            await issueCredentialForAddress(account[0].address);
+          }
         } catch (error) {
           console.error('Error fetching account:', error);
           // If authentication fails, clear the account info
@@ -71,6 +78,61 @@ export default function LoginButton({ className }: LoginButtonProps) {
     await signOut();
     setAccountInfo(null);
     setIsOpen(false);
+  };
+
+  // Separate function for credential issuance
+  const issueCredentialForAddress = async (address: string) => {
+    setIsIssuingCredential(true);
+    try {
+      console.log('Attempting to issue credential for address:', '0xfc96246e43bd58e053a3a669d8b5364c129df681');
+      
+      const response = await fetch('/api/credentials/issue', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subject_address: '0xfc96246e43bd58e053a3a669d8b5364c129df681',
+          claims: {
+            kyc: "passed",
+            age: 22,
+            custom_claim: "value"
+          }
+        })
+      });
+      
+      const data = await response.json();
+      console.log('Credential API Response:', data);
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to issue credential');
+      }
+      
+      setCredentialResult(data);
+      console.log("Credential issued successfully:", data);
+
+      // Add this after successful credential issuance
+      if (data.credential) {
+        // Store the credential in localStorage or your preferred storage
+        localStorage.setItem('humanityCredential', JSON.stringify(data.credential));
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error issuing credential:", error);
+      setCredentialResult({ error: "Failed to issue credential" });
+      throw error;
+    } finally {
+      setIsIssuingCredential(false);
+    }
+  };
+
+  const issueVerifiableCredential = async () => {
+    if (!accountInfo || !accountInfo[0].address) {
+      console.error("No wallet address available");
+      return;
+    }
+    await issueCredentialForAddress(accountInfo[0].address);
   };
 
   return (
@@ -123,6 +185,31 @@ export default function LoginButton({ className }: LoginButtonProps) {
               ) : (
                 <div className="text-center py-4 text-gray-600 dark:text-gray-300">
                   Failed to load account info
+                </div>
+              )}
+
+              {accountInfo && (
+                <div className="space-y-2">
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={issueVerifiableCredential}
+                    isDisabled={isIssuingCredential}
+                  >
+                    {isIssuingCredential ? 'Issuing Credential...' : 'Issue Verifiable Credential'}
+                  </Button>
+                  
+                  {credentialResult && (
+                    <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded text-sm">
+                      {credentialResult.message ? (
+                        <p className="text-green-600 dark:text-green-400">{credentialResult.message}</p>
+                      ) : credentialResult.error ? (
+                        <p className="text-red-600 dark:text-red-400">{credentialResult.error}</p>
+                      ) : (
+                        <p>Credential issued</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
