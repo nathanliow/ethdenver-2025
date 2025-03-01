@@ -7,7 +7,7 @@ import "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
  * @title Inflection with True Split-Fixed-Cost Pledges
  * @notice This contract demonstrates a stablecoin-only crowdfunding system
  *         with a special "pledge" mechanic for SplitFixedCost campaigns.
- * 
+ *
  *         For SplitFixedCost:
  *           - Donors call pledgeSplitFixedCost(...) to signal participation
  *           - No tokens are transferred yet
@@ -20,9 +20,16 @@ import "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
  */
 
 interface IERC20 {
-    function transfer(address recipient, uint256 amount) external returns (bool);
+    function transfer(
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
     // We'll also need transferFrom for the SplitFixedCost mechanic:
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
 }
 
 contract Inflection is AutomationCompatibleInterface {
@@ -30,33 +37,32 @@ contract Inflection is AutomationCompatibleInterface {
     // Enums & Data Structures
     // ------------------------------------------------------------------------
     enum CampaignType {
-        AnythingHelps,   // Tips automatically at deadline (no minimum)
-        Goal,            // Must reach or exceed 'goal'
-        PerPerson,       // Must have exactly maxDonors each paying >= cost
-        SplitFixedCost   // Must raise 'goal' by charging pledgers at the end
+        AnythingHelps, // Tips automatically at deadline (no minimum)
+        Goal, // Must reach or exceed 'goal'
+        PerPerson, // Must have exactly maxDonors each paying >= cost
+        SplitFixedCost // Must raise 'goal' by charging pledgers at the end
     }
 
     struct Campaign {
         uint256 id;
         CampaignType campaignType;
         bool isActive;
-        address token;            // ERC20 stablecoin
+        address token; // ERC20 stablecoin
         string name;
         string image;
         string description;
-        uint256 balance;          // total tokens credited so far
+        uint256 balance; // total tokens credited so far
         uint256 deadline;
-        uint256 numDonors;        // how many donors or pledgers
-        address[] donors;         // list of donors or pledgers
+        address[] donors; // list of donors or pledgers
         uint256 goal;
-        uint256 maxDonors;        // used in PerPerson or SplitFixedCost
+        uint256 maxDonors; // used in PerPerson or SplitFixedCost
         address recipient;
-        uint256 numDonations;     // how many calls to updateCampaign or pledge
+        uint256 numDonations; // how many calls to updateCampaign or pledge
     }
 
-    address public owner;               
-    uint256 private campaignCount;      
-    Campaign[] private campaigns;       
+    address public owner;
+    uint256 private campaignCount;
+    Campaign[] private campaigns;
 
     // For normal campaigns (AnythingHelps, Goal, PerPerson), we track each donor's deposit:
     mapping(uint256 => mapping(address => uint256)) public campaignDonations;
@@ -89,7 +95,9 @@ contract Inflection is AutomationCompatibleInterface {
     // ------------------------------------------------------------------------
     // Chainlink Automation
     // ------------------------------------------------------------------------
-    function checkUpkeep(bytes calldata)
+    function checkUpkeep(
+        bytes calldata
+    )
         external
         view
         override
@@ -129,11 +137,10 @@ contract Inflection is AutomationCompatibleInterface {
         }
     }
 
-    function sliceArray(uint256[] memory array, uint256 length)
-        internal
-        pure
-        returns (uint256[] memory)
-    {
+    function sliceArray(
+        uint256[] memory array,
+        uint256 length
+    ) internal pure returns (uint256[] memory) {
         uint256[] memory trimmed = new uint256[](length);
         for (uint256 i = 0; i < length; i++) {
             trimmed[i] = array[i];
@@ -153,7 +160,10 @@ contract Inflection is AutomationCompatibleInterface {
         delete campaigns[_campaignId];
     }
 
-    function setTokenWhitelisted(address _token, bool _isWhitelisted) external onlyOwner {
+    function setTokenWhitelisted(
+        address _token,
+        bool _isWhitelisted
+    ) external onlyOwner {
         whitelistedTokens[_token] = _isWhitelisted;
     }
 
@@ -179,7 +189,10 @@ contract Inflection is AutomationCompatibleInterface {
         require(_deadline > block.timestamp, "Deadline in past");
         require(_goal > 0, "Goal>0");
 
-        if (_campaignType == CampaignType.PerPerson || _campaignType == CampaignType.SplitFixedCost) {
+        if (
+            _campaignType == CampaignType.PerPerson ||
+            _campaignType == CampaignType.SplitFixedCost
+        ) {
             require(_maxDonors > 0, "maxDonors>0");
         }
 
@@ -193,7 +206,6 @@ contract Inflection is AutomationCompatibleInterface {
             description: _description,
             balance: 0,
             deadline: _deadline,
-            numDonors: 0,
             donors: new address[](0),
             goal: _goal,
             maxDonors: _maxDonors,
@@ -223,16 +235,24 @@ contract Inflection is AutomationCompatibleInterface {
         require(block.timestamp < c.deadline, "Deadline passed");
         require(_amount > 0, "Amount>0");
         require(_donor != address(0), "Donor=0");
+        require(c.donors.length < c.maxDonors, "Max pledgers reached");
 
         // For "SplitFixedCost" below, we do NOT deposit tokens here. So skip if it's that type:
-        require(c.campaignType != CampaignType.SplitFixedCost, "Use pledgeSplitFixedCost");
+        require(
+            c.campaignType != CampaignType.SplitFixedCost,
+            "Use pledgeSplitFixedCost"
+        );
+
+        // For "PerPerson" campaigns, we require the exact equal split amount:
+        if (c.campaignType == CampaignType.PerPerson) {
+            require(_amount == c.goal / c.maxDonors, "Amount must be goal / maxDonors");
+        }
 
         // Increase the campaign's recorded balance
         c.balance += _amount;
 
         // If new donor, record them
         if (campaignDonations[_campaignId][_donor] == 0) {
-            c.numDonors++;
             c.donors.push(_donor);
         }
         campaignDonations[_campaignId][_donor] += _amount;
@@ -246,18 +266,23 @@ contract Inflection is AutomationCompatibleInterface {
      * @notice Pledge to a SplitFixedCost campaign. No tokens are transferred
      *         right now. We'll pull tokens at the end if enough people joined.
      */
-    function pledgeSplitFixedCost(uint256 _campaignId) external {
+    function pledgeSplitFixedCost(
+        uint256 _campaignId,
+        address pledger
+    ) external {
         Campaign storage c = campaigns[_campaignId];
         require(c.isActive, "Ended");
         require(block.timestamp < c.deadline, "Deadline passed");
-        require(c.campaignType == CampaignType.SplitFixedCost, "Not SplitFixedCost");
-        require(!splitPledges[_campaignId][msg.sender], "Already pledged");
-        require(c.numDonors < c.maxDonors, "Max pledgers reached");
+        require(
+            c.campaignType == CampaignType.SplitFixedCost,
+            "Not SplitFixedCost"
+        );
+        require(!splitPledges[_campaignId][pledger], "Already pledged");
+        require(c.donors.length < c.maxDonors, "Max pledgers reached");
 
         // Mark the pledger
-        splitPledges[_campaignId][msg.sender] = true;
-        c.numDonors++;
-        c.donors.push(msg.sender);
+        splitPledges[_campaignId][pledger] = true;
+        c.donors.push(pledger);
         c.numDonations++;
     }
 
@@ -270,27 +295,30 @@ contract Inflection is AutomationCompatibleInterface {
         require(c.isActive, "Already ended");
         require(block.timestamp >= c.deadline, "Not yet due");
 
+        if (c.donors.length == 0) {
+            // no fee collected
+            _refundAndClose(c);
+            return;
+        }
+
         if (c.campaignType == CampaignType.AnythingHelps) {
             // Always pays out
             _payoutAndClose(c);
-        }
-        else if (c.campaignType == CampaignType.Goal) {
+        } else if (c.campaignType == CampaignType.Goal) {
             // Must reach or exceed goal
             if (c.balance >= c.goal) {
                 _payoutAndClose(c);
             } else {
                 _refundAndClose(c);
             }
-        }
-        else if (c.campaignType == CampaignType.PerPerson) {
+        } else if (c.campaignType == CampaignType.PerPerson) {
             // Must have exactly maxDonors
-            if (c.numDonors == c.maxDonors) {
+            if (c.donors.length == c.maxDonors) {
                 _payoutAndClose(c);
             } else {
                 _refundAndClose(c);
             }
-        }
-        else if (c.campaignType == CampaignType.SplitFixedCost) {
+        } else if (c.campaignType == CampaignType.SplitFixedCost) {
             // We do the new "pledging" approach:
             _handleSplitFixedCostEnd(c);
         }
@@ -301,7 +329,7 @@ contract Inflection is AutomationCompatibleInterface {
      *      transferFrom(...) from each pledger. If any fail, we revert => campaign fails.
      */
     function _handleSplitFixedCostEnd(Campaign storage c) internal {
-        uint256 pledgerCount = c.numDonors;
+        uint256 pledgerCount = c.donors.length;
         require(pledgerCount > 0, "No pledgers");
 
         // cost per person (integer division).
@@ -318,7 +346,11 @@ contract Inflection is AutomationCompatibleInterface {
             // ensure they've pledged
             if (splitPledges[c.id][pledger]) {
                 // Attempt transferFrom the pledger
-                bool success = token.transferFrom(pledger, address(this), costPerPerson);
+                bool success = token.transferFrom(
+                    pledger,
+                    address(this),
+                    costPerPerson
+                );
                 require(success, "transferFrom failed (approve/balance?)");
                 totalPulled += costPerPerson;
             }
@@ -360,7 +392,10 @@ contract Inflection is AutomationCompatibleInterface {
         // Transfer fee to owner
         require(token.transfer(owner, feeAmount), "Fee transfer failed");
         // Transfer remainder to recipient
-        require(token.transfer(c.recipient, total - feeAmount), "Payout failed");
+        require(
+            token.transfer(c.recipient, total - feeAmount),
+            "Payout failed"
+        );
 
         c.isActive = false;
         c.balance = 0;
@@ -389,11 +424,9 @@ contract Inflection is AutomationCompatibleInterface {
     // ------------------------------------------------------------------------
     // View Functions
     // ------------------------------------------------------------------------
-    function getCampaign(uint256 _campaignId)
-        external
-        view
-        returns (Campaign memory)
-    {
+    function getCampaign(
+        uint256 _campaignId
+    ) external view returns (Campaign memory) {
         require(_campaignId < campaignCount, "Invalid campaignId");
         return campaigns[_campaignId];
     }
