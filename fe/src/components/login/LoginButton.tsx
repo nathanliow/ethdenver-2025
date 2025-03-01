@@ -225,12 +225,6 @@ export default function LoginButton({ className }: LoginButtonProps) {
                 Choose how you would like to connect:
               </p>
               <GoogleLoginButton className="w-full" />
-              <Button
-                variant="secondary"
-                className="w-full border border-gray-300 dark:border-gray-600"
-              >
-                Connect Wallet
-              </Button>
             </div>
           )}
         </div>

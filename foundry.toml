@@ -14,6 +14,7 @@ remappings = [
 [rpc_endpoints]
 sepolia = "https://eth-sepolia.g.alchemy.com/v2/fJESj5VQGK1wB13wkKu0dZyEl5hQ04a_"
 base-sepolia = "https://base-sepolia.g.alchemy.com/v2/fJESj5VQGK1wB13wkKu0dZyEl5hQ04a_"
+polygon-amoy = "https://polygon-amoy.g.alchemy.com/v2/fJESj5VQGK1wB13wkKu0dZyEl5hQ04a_"
 
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

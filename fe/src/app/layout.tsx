@@ -8,6 +8,7 @@ import { authOptions } from "./api/auth/[...nextauth]/route";
 import { Toaster } from 'react-hot-toast';
 import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
 import OnchainKitClient from "./OnchainKitClient";
+import { OktoClientProvider } from "@/components/providers/OktoProvider";
  
 const dmSans = DM_Sans({ subsets: ["latin"] });
  
@@ -26,15 +27,17 @@ export default async function RootLayout({
     <html lang="en">
       <body className={dmSans.className}>
         <Toaster />
-        <ReactQueryProvider>
-          <OnchainKitClient>
-            <AppProvider session={session}>
-              <CampaignProvider>
-                {children}
-              </CampaignProvider>
-            </AppProvider>
-          </OnchainKitClient>
-        </ReactQueryProvider>
+        <OktoClientProvider>
+          <ReactQueryProvider>
+            <OnchainKitClient>
+              <AppProvider session={session}>
+                <CampaignProvider>
+                  {children}
+                </CampaignProvider>
+              </AppProvider>
+            </OnchainKitClient>
+          </ReactQueryProvider>
+        </OktoClientProvider>
       </body>
     </html>
   );

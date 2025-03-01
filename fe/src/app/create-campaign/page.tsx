@@ -11,6 +11,8 @@ import { CampaignType } from '@/types/campaign';
 import ImageUpload from '@/components/ui/ImageUpload';
 import { HandleCreateCampaign } from './HandleCreateCampaign';
 import { getAccount, useOkto } from '@okto_web3/react-sdk';
+import { TOKEN_ADDRESSES } from '@/Consts';
+import { getRawTransactionOrder } from './GetRawTransactionOrder';
 
 export default function CreateCampaignPage() {
   const router = useRouter();
@@ -23,7 +25,7 @@ export default function CreateCampaignPage() {
   const [goalAmount, setGoalAmount] = useState('');
   const [perPersonAmount, setPerPersonAmount] = useState('');
   const [maxDonors, setMaxDonors] = useState('');
-  const [selectedNetwork, setSelectedNetwork] = useState<'BASE_SEPOLIA'>('BASE_SEPOLIA');
+  const [selectedNetwork, setSelectedNetwork] = useState<'BASE_SEPOLIA' | 'POLYGON_AMOY'>('BASE_SEPOLIA');
   const [selectedToken, setSelectedToken] = useState<'USDC' | 'RLUSD'>('USDC');
   const oktoClient = useOkto();
   const [recipientAddress, setRecipientAddress] = useState('');
@@ -80,21 +82,25 @@ export default function CreateCampaignPage() {
 
     try {
       const deadlineTimestamp = new Date(deadline).getTime() / 1000;
+      const selectedTokenAddress = selectedToken === 'USDC' ? TOKEN_ADDRESSES[selectedNetwork].USDC : TOKEN_ADDRESSES[selectedNetwork].RLUSD;
       
       const jobId = await HandleCreateCampaign({
         oktoClient,
-        selectedToken: selectedToken,
+        selectedTokenAddress: selectedTokenAddress,
         selectedNetwork: selectedNetwork,
         campaignType: selectedType,
         creatorAddress: creatorAddress as `0x${string}`,
         name,
         image,
         description,
-        recipient: recipientAddress,
+        recipient: recipientAddress as `0x${string}`,
         deadline: deadlineTimestamp,      
         goal: selectedType === CampaignType.Goal ? BigInt(parseFloat(goalAmount) * 1e18) : BigInt(0),
         maxDonors: selectedType === CampaignType.PerPerson ? parseInt(maxDonors) : 0,
       });
+      
+      const order = await getRawTransactionOrder(oktoClient, jobId);
+      console.log('Order Status:', order);
 
       toast.success('Campaign created successfully!');
       router.push('/campaigns');
@@ -212,10 +218,11 @@ export default function CreateCampaignPage() {
 
                   <select
                     value={selectedNetwork}
-                    onChange={(e) => setSelectedNetwork(e.target.value as 'BASE_SEPOLIA')}
+                    onChange={(e) => setSelectedNetwork(e.target.value as 'BASE_SEPOLIA' | 'POLYGON_AMOY')}
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
                     <option value="BASE_SEPOLIA">Base Sepolia</option>
+                    <option value="POLYGON_AMOY">Polygon Amoy</option>
                   </select>
                   </div>
                 </div>

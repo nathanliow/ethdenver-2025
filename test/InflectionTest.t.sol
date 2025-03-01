@@ -40,7 +40,7 @@ contract InflectionSplitTest is Test {
     function testCreateCampaign() public {
         inflection.createCampaign(
             address(token),
-            Inflection.CampaignType.AnythingHelps,
+            0,
             "title",
             "test.img",
             "desc",
@@ -51,10 +51,6 @@ contract InflectionSplitTest is Test {
         );
 
         Inflection.Campaign memory c = inflection.getCampaign(0);
-        assertEq(
-            uint256(c.campaignType),
-            uint256(Inflection.CampaignType.AnythingHelps)
-        );
         assertEq(c.goal, 500e6);
         assertEq(c.deadline, deadline);
         assertEq(c.recipient, recipient);
@@ -73,7 +69,7 @@ contract InflectionSplitTest is Test {
     function testAnythingHelpsPass() public {
         inflection.createCampaign(
             address(token),
-            Inflection.CampaignType.AnythingHelps,
+            0,
             "title",
             "test.img",
             "desc",
@@ -107,7 +103,7 @@ contract InflectionSplitTest is Test {
     function testGoalPass() public {
         inflection.createCampaign(
             address(token),
-            Inflection.CampaignType.Goal,
+            1,
             "title",
             "test.img",
             "desc",
@@ -142,7 +138,7 @@ contract InflectionSplitTest is Test {
     function testGoalFail() public {
         inflection.createCampaign(
             address(token),
-            Inflection.CampaignType.Goal,
+            1,
             "title",
             "test.img",
             "desc",
@@ -176,7 +172,7 @@ contract InflectionSplitTest is Test {
     function testPerPersonPass() public {
         inflection.createCampaign(
             address(token),
-            Inflection.CampaignType.PerPerson,
+            2,
             "test",
             "test.img",
             "desc",
@@ -221,7 +217,7 @@ contract InflectionSplitTest is Test {
     function testPerPersonFailUnequalDonations() public {
         inflection.createCampaign(
             address(token),
-            Inflection.CampaignType.PerPerson,
+            2,
             "test",
             "test.img",
             "desc",
@@ -245,7 +241,7 @@ contract InflectionSplitTest is Test {
     function testPerPersonFailGoalNotMet() public {
         inflection.createCampaign(
             address(token),
-            Inflection.CampaignType.PerPerson,
+            2,
             "test",
             "test.img",
             "desc",
@@ -278,7 +274,7 @@ contract InflectionSplitTest is Test {
         // Create a SplitFixedCost campaign: goal=3000, maxDonors=10
         inflection.createCampaign(
             address(token),
-            Inflection.CampaignType.SplitFixedCost,
+            3,
             "SplitTest",
             "",
             "desc",
@@ -333,7 +329,7 @@ contract InflectionSplitTest is Test {
         // Create a SplitFixedCost campaign: goal=3000, maxDonors=10
         inflection.createCampaign(
             address(token),
-            Inflection.CampaignType.SplitFixedCost,
+            3,
             "SplitTest",
             "",
             "desc",

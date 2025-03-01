@@ -11,13 +11,13 @@ contract InflectionScript is Script {
     Inflection public inflection1;
     Inflection public inflection2;
     
-    function run() public {
-        vm.createSelectFork("sepolia");
+    function run() public { 
+        vm.createSelectFork("base-sepolia");
         vm.startBroadcast();
         inflection1 = new Inflection();
         vm.stopBroadcast();
 
-        vm.createSelectFork("base-sepolia");
+        vm.createSelectFork("polygon-amoy");
         vm.startBroadcast();
         inflection2 = new Inflection();
         vm.stopBroadcast();

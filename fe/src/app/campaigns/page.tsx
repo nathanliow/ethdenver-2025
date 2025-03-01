@@ -4,15 +4,11 @@ import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import CampaignCard from '@/components/campaign/CampaignCard';
 import { Campaign } from '@/types/campaign';
-import { createThirdwebClient, getContract } from "thirdweb";
+import { getContract } from "thirdweb";
 import { useReadContract } from "thirdweb/react";
 import { NETWORK_CONFIG } from '@/Consts';
 import { baseSepolia } from "thirdweb/chains";
-
-export const client = createThirdwebClient({ 
-  clientId: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID || "...", 
-  secretKey: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_SECRET || "..."
-});
+import { ThirdwebClient } from '../ThirdWebClient';
 
 // Contract configuration
 export default function CampaignsPage() {
@@ -20,7 +16,7 @@ export default function CampaignsPage() {
 
   // Read all campaigns from the contract
   const contract = getContract({
-    client: client, 
+    client: ThirdwebClient, 
     chain: baseSepolia,
     address: NETWORK_CONFIG[selectedNetwork].contractAddress,
   });

@@ -23,3 +23,10 @@ export interface Campaign {
   numDonations: number;
   creator: string;
 } 
+
+// enum CampaignType {
+  //     AnythingHelps = 0, // Tips automatically at deadline (no minimum)
+  //     Goal = 1, // Must reach or exceed 'goal'
+  //     PerPerson = 2, // Must have exactly maxDonors each paying >= cost
+  //     SplitFixedCost = 3 // Must raise 'goal' by charging pledgers at the end
+  // }

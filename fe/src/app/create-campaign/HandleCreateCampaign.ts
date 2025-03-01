@@ -1,12 +1,12 @@
 import { OktoClient, evmRawTransaction } from '@okto_web3/react-sdk';
 import { encodeFunctionData } from 'viem';
 import { CampaignType } from '@/types/campaign';
-import { NETWORK_CONFIG, TOKEN_ADDRESSES } from '@/Consts';
+import { NETWORK_CONFIG } from '@/Consts';
 
 interface CreateCampaignParams {
   oktoClient: OktoClient;
-  selectedToken: 'USDC' | 'RLUSD',
-  selectedNetwork: 'BASE_SEPOLIA';
+  selectedTokenAddress: string;
+  selectedNetwork: 'BASE_SEPOLIA' | 'POLYGON_AMOY';
   campaignType: CampaignType;
   creatorAddress: string;
   name: string;
@@ -20,7 +20,7 @@ interface CreateCampaignParams {
 
 export const HandleCreateCampaign = async ({
   oktoClient,
-  selectedToken,
+  selectedTokenAddress,
   selectedNetwork,
   campaignType,
   creatorAddress,
@@ -34,13 +34,25 @@ export const HandleCreateCampaign = async ({
 }: CreateCampaignParams) => {
   // Get network specific configuration
   const networkConfig = NETWORK_CONFIG[selectedNetwork];
-  const tokenAddress = TOKEN_ADDRESSES[selectedNetwork]?.[selectedToken] ?? TOKEN_ADDRESSES[selectedNetwork]?.USDC;
-  // Define the ABI for createCampaign function
+
+  console.log("CreateCampaign Params:", {
+    selectedTokenAddress,
+    selectedNetwork,
+    campaignType,
+    creatorAddress,
+    name,
+    image,
+    description,
+    recipient,
+    goal: goal.toString(),
+    deadline,
+    maxDonors
+  });
 
   const abi = [{
     "inputs": [
       {"name": "_token", "type": "address"},
-      {"name": "_campaignType", "type": "uint8"},
+      {"name": "_campaignType", "type": "uint256"},
       {"name": "_name", "type": "string"},
       {"name": "_image", "type": "string"},
       {"name": "_description", "type": "string"},
@@ -60,7 +72,7 @@ export const HandleCreateCampaign = async ({
     abi,
     functionName: 'createCampaign',
     args: [
-      tokenAddress,
+      selectedTokenAddress,
       campaignType,
       name,
       image,

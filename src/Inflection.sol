@@ -36,16 +36,16 @@ contract Inflection is AutomationCompatibleInterface {
     // ------------------------------------------------------------------------
     // Enums & Data Structures
     // ------------------------------------------------------------------------
-    enum CampaignType {
-        AnythingHelps, // Tips automatically at deadline (no minimum)
-        Goal, // Must reach or exceed 'goal'
-        PerPerson, // Must have exactly maxDonors each paying >= cost
-        SplitFixedCost // Must raise 'goal' by charging pledgers at the end
-    }
+    // enum CampaignType {
+    //     AnythingHelps = 0, // Tips automatically at deadline (no minimum)
+    //     Goal = 1, // Must reach or exceed 'goal'
+    //     PerPerson = 2, // Must have exactly maxDonors each paying >= cost
+    //     SplitFixedCost = 3 // Must raise 'goal' by charging pledgers at the end
+    // }
 
     struct Campaign {
         uint256 id;
-        CampaignType campaignType;
+        uint256 campaignType;
         bool isActive;
         address token; // ERC20 stablecoin
         string name;
@@ -173,7 +173,7 @@ contract Inflection is AutomationCompatibleInterface {
     // ------------------------------------------------------------------------
     function createCampaign(
         address _token,
-        CampaignType _campaignType,
+        uint256 _campaignType,
         string calldata _name,
         string calldata _image,
         string calldata _description,
@@ -191,8 +191,8 @@ contract Inflection is AutomationCompatibleInterface {
         require(_goal > 0, "Goal>0");
 
         if (
-            _campaignType == CampaignType.PerPerson ||
-            _campaignType == CampaignType.SplitFixedCost
+            _campaignType == 2 ||
+            _campaignType == 3
         ) {
             require(_maxDonors > 0, "maxDonors>0");
         }
@@ -241,12 +241,12 @@ contract Inflection is AutomationCompatibleInterface {
 
         // For "SplitFixedCost" below, we do NOT deposit tokens here. So skip if it's that type:
         require(
-            c.campaignType != CampaignType.SplitFixedCost,
+            c.campaignType != 3,
             "Use pledgeSplitFixedCost"
         );
 
         // For "PerPerson" campaigns, we require the exact equal split amount:
-        if (c.campaignType == CampaignType.PerPerson) {
+        if (c.campaignType == 2) {
             require(_amount == c.goal / c.maxDonors, "Amount must be goal / maxDonors");
         }
 
@@ -276,7 +276,7 @@ contract Inflection is AutomationCompatibleInterface {
         require(c.isActive, "Ended");
         require(block.timestamp < c.deadline, "Deadline passed");
         require(
-            c.campaignType == CampaignType.SplitFixedCost,
+            c.campaignType == 3,
             "Not SplitFixedCost"
         );
         require(!splitPledges[_campaignId][pledger], "Already pledged");
@@ -303,24 +303,24 @@ contract Inflection is AutomationCompatibleInterface {
             return;
         }
 
-        if (c.campaignType == CampaignType.AnythingHelps) {
+        if (c.campaignType == 0) {
             // Always pays out
             _payoutAndClose(c);
-        } else if (c.campaignType == CampaignType.Goal) {
+        } else if (c.campaignType == 1) {
             // Must reach or exceed goal
             if (c.balance >= c.goal) {
                 _payoutAndClose(c);
             } else {
                 _refundAndClose(c);
             }
-        } else if (c.campaignType == CampaignType.PerPerson) {
+        } else if (c.campaignType == 2) {
             // Must have exactly maxDonors
             if (c.donors.length == c.maxDonors) {
                 _payoutAndClose(c);
             } else {
                 _refundAndClose(c);
             }
-        } else if (c.campaignType == CampaignType.SplitFixedCost) {
+        } else if (c.campaignType == 3) {
             // We do the new "pledging" approach:
             _handleSplitFixedCostEnd(c);
         }
