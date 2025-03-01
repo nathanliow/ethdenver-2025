@@ -1,4 +1,4 @@
-import { OktoClient, evmRawTransaction } from '@okto_web3/react-sdk';
+import { Hash, OktoClient, evmRawTransaction } from '@okto_web3/react-sdk';
 import { encodeFunctionData } from 'viem';
 import { CampaignType } from '@/types/campaign';
 import { NETWORK_CONFIG } from '@/Consts';
@@ -15,7 +15,7 @@ interface CreateCampaignParams {
   recipient: string;
   goal?: bigint; // For Goal type
   deadline: number; // Unix timestamp
-  maxDonors?: number; // For PerPerson type
+  maxDonors?: bigint; // For PerPerson type
 }
 
 export const HandleCreateCampaign = async ({
@@ -28,9 +28,9 @@ export const HandleCreateCampaign = async ({
   image,
   description,
   recipient,
-  goal = BigInt(0),
+  goal = 0n,
   deadline,
-  maxDonors = 0,
+  maxDonors = 0n,
 }: CreateCampaignParams) => {
   // Get network specific configuration
   const networkConfig = NETWORK_CONFIG[selectedNetwork];
@@ -38,49 +38,85 @@ export const HandleCreateCampaign = async ({
   console.log("CreateCampaign Params:", {
     selectedTokenAddress,
     selectedNetwork,
-    campaignType,
+    campaignType: BigInt(campaignType).toString(),
     creatorAddress,
     name,
     image,
     description,
     recipient,
-    goal: goal.toString(),
+    goal: BigInt(goal).toString(),
     deadline,
-    maxDonors
+    maxDonors: BigInt(maxDonors).toString()
   });
 
-  const abi = [{
+  const createCampaignABI = {
     "inputs": [
-      {"name": "_token", "type": "address"},
-      {"name": "_campaignType", "type": "uint256"},
-      {"name": "_name", "type": "string"},
-      {"name": "_image", "type": "string"},
-      {"name": "_description", "type": "string"},
-      {"name": "_recipient", "type": "address"},
-      {"name": "_goal", "type": "uint256"},
-      {"name": "_deadline", "type": "uint256"},
-      {"name": "_maxDonors", "type": "uint256"}
+      {
+        "internalType": "address",
+        "name": "_token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_campaignType",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_image",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_description",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "_recipient",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_goal",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_deadline",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_maxDonors",
+        "type": "uint256"
+      }
     ],
     "name": "createCampaign",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
-  }];
+  };
 
   // Encode function data using viem
   const data = encodeFunctionData({
-    abi,
+    abi: [createCampaignABI],
     functionName: 'createCampaign',
     args: [
       selectedTokenAddress,
-      campaignType,
+      BigInt(campaignType),
       name,
       image,
       description,
       recipient,
-      goal,
-      BigInt(deadline),
-      BigInt(maxDonors)
+      goal ? BigInt(goal) : 0n,
+      deadline ? BigInt(deadline) : 0n,
+      maxDonors ? BigInt(maxDonors) : 0n
     ]
   });
 
@@ -92,7 +128,8 @@ export const HandleCreateCampaign = async ({
     transaction: {
       from: creatorAddress as `0x${string}`,
       to: networkConfig.contractAddress as `0x${string}`,
-      data,
+      data: data as Hash,
+      value: `0x${`0`}` as Hash,
     }
   };
 
@@ -101,8 +138,16 @@ export const HandleCreateCampaign = async ({
   try {
     // Send the transaction using Okto
     const jobId = await evmRawTransaction(
-      oktoClient, 
-      rawTxParams
+      oktoClient,
+      {
+        caip2Id: networkConfig.caip2Id,
+        transaction: {
+          from: creatorAddress as `0x${string}`,
+          to: networkConfig.contractAddress as `0x${string}`,
+          data: data as Hash,
+          value: 0n
+        }
+      }
     );
     console.log("Campaign creation jobId:", jobId);
     return jobId;

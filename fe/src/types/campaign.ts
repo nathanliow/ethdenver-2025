@@ -13,14 +13,14 @@ export interface Campaign {
   name: string;
   image: string;
   description: string;
-  balance: number;
-  deadline: number;
-  numDonors: number;
+  balance: bigint;
+  deadline: bigint;
+  numDonors: bigint;
   donors: string[];
-  goal: number;
-  maxDonors: number;
+  goal: bigint;
+  maxDonors: bigint;
   recipient: string;
-  numDonations: number;
+  numDonations: bigint;
   creator: string;
 } 
 

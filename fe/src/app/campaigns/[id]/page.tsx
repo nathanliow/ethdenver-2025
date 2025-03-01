@@ -81,8 +81,6 @@ export default function CampaignsPage() {
       }
     }
     
-    // Todo: fix SplitFixedCost
-
     return true;
   };
 

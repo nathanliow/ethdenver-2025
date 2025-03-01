@@ -91,6 +91,91 @@ contract Inflection is AutomationCompatibleInterface {
         whitelistedTokens[0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238] = true; // ETH_SEPOLIA_USDC
         whitelistedTokens[0x036CbD53842c5426634e7929541eC2318f3dCF7e] = true; // BASE_SEPOLIA_USDC
         whitelistedTokens[0x866386C7f4F2A5f46C5F4566D011dbe3e8679BE4] = true; // ETH_SEPOLIA_RLUSD
+
+        // Create initial campaigns
+        // Campaign 1: AnythingHelps type
+        Campaign memory campaign1 = Campaign({
+            id: campaignCount,
+            campaignType: 0, // AnythingHelps
+            isActive: true,
+            token: 0x036CbD53842c5426634e7929541eC2318f3dCF7e, 
+            name: "Local Garden Donation",
+            image: "https://aggregator.walrus-testnet.walrus.space/v1/blobs/zbKWfD_dVGzL4ekJMn1iISezkIfvm4dH_g1tPj9jeZ8",
+            description: "Help us keep our local garden open by contributing any amount you can.",
+            balance: 0,
+            deadline: block.timestamp + 30 days,
+            donors: new address[](0),
+            goal: 1000,
+            maxDonors: 0,
+            recipient: msg.sender,
+            numDonations: 0,
+            creator: msg.sender
+        });
+        campaigns.push(campaign1);
+        campaignCount++;
+
+        // Campaign 2: Goal type
+        Campaign memory campaign2 = Campaign({
+            id: campaignCount,
+            campaignType: 1, // Goal
+            isActive: true,
+            token: 0x036CbD53842c5426634e7929541eC2318f3dCF7e, 
+            name: "New City Library",
+            image: "https://aggregator.walrus-testnet.walrus.space/v1/blobs/OIux3OMn-8lajczhb6CX6RoaHrEJwv6hxc87PprsBI4",
+            description: "Help us build a library in the heart of the city.",
+            balance: 0,
+            deadline: block.timestamp + 45 days,
+            donors: new address[](0),
+            goal: 10000,
+            maxDonors: 0,
+            recipient: msg.sender,
+            numDonations: 0,
+            creator: msg.sender
+        });
+        campaigns.push(campaign2);
+        campaignCount++;
+
+        // Campaign 3: PerPerson type
+        Campaign memory campaign3 = Campaign({
+            id: campaignCount,
+            campaignType: 2, 
+            isActive: true,
+            token: 0x036CbD53842c5426634e7929541eC2318f3dCF7e, 
+            name: "Church Retreat Trip",
+            image: "https://aggregator.walrus-testnet.walrus.space/v1/blobs/lFAMx4f0vtNqboa20df0KQRHertjqLMbOC0Ylv_W-0U",
+            description: "Join our church retreat trip!",
+            balance: 0,
+            deadline: block.timestamp + 60 days,
+            donors: new address[](0),
+            goal: 2000,
+            maxDonors: 20,
+            recipient: msg.sender,
+            numDonations: 0,
+            creator: msg.sender
+        });
+        campaigns.push(campaign3);
+        campaignCount++;
+
+        // Campaign 4: SplitFixedCost type
+        Campaign memory campaign4 = Campaign({
+            id: campaignCount,
+            campaignType: 3, // SplitFixedCost
+            isActive: true,
+            token: 0x036CbD53842c5426634e7929541eC2318f3dCF7e, // BASE_SEPOLIA_USDC
+            name: "Frat House Retreat at Cancun",
+            image: "https://aggregator.walrus-testnet.walrus.space/v1/blobs/H86J5Gix-4oOqVfj6vs6C5f5HCjEUT531NR7XCgAqEs",
+            description: "Join our frat house retreat at Cancun!",
+            balance: 0,
+            deadline: block.timestamp + 90 days,
+            donors: new address[](0),
+            goal: 10000,
+            maxDonors: 50,
+            recipient: msg.sender,
+            numDonations: 0,
+            creator: msg.sender
+        });
+        campaigns.push(campaign4);
+        campaignCount++;
     }
 
     // ------------------------------------------------------------------------

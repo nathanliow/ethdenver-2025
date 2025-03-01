@@ -55,6 +55,7 @@ const ImageUpload = ({ onImageUploaded }: ImageUploadProps) => {
           url: imageUrl
         });
         onImageUploaded(imageUrl);
+        console.log("Image uploaded:", imageUrl);
       } else {
         throw new Error("Could not find blobId in response");
       }

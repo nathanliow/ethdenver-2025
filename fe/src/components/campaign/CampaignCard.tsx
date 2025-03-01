@@ -27,10 +27,14 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
   };
 
   // Calculate progress percentage
-  const progressPercentage = (campaign.balance / campaign.goal) * 100;
+  const progressPercentage = (Number(campaign.balance) / Number(campaign.goal)) * 100;
+  
+  // Format balance and goal to ETH units (divide by 1e18)
+  const formattedBalance = (Number(campaign.balance) / 1e18).toFixed(2);
+  const formattedGoal = (Number(campaign.goal) / 1e18).toFixed(2);
   
   // Format deadline
-  const deadlineDate = new Date(campaign.deadline * 1000);
+  const deadlineDate = new Date(Number(campaign.deadline) * 1000);
   const formattedDeadline = deadlineDate.toLocaleDateString();
   
   return (
@@ -64,8 +68,8 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
           </div>
           
           <div className="flex justify-between text-sm mb-4">
-            <span className="font-medium">{(campaign.balance / 1e18).toFixed(2)} ETH raised</span>
-            <span className="text-gray-600 dark:text-gray-300">of {(campaign.goal / 1e18).toFixed(2)} ETH</span>
+            <span className="font-medium">{(Number(campaign.balance) / 1e18).toFixed(2)} USD raised</span>
+            <span className="text-gray-600 dark:text-gray-300">of {(Number(campaign.goal) / 1e18).toFixed(2)} USD</span>
           </div>
           
           <div className="flex justify-between text-sm mb-6">

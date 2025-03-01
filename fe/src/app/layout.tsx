@@ -9,6 +9,7 @@ import { Toaster } from 'react-hot-toast';
 import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
 import OnchainKitClient from "./OnchainKitClient";
 import { OktoClientProvider } from "@/components/providers/OktoProvider";
+import { ThirdwebProvider } from "thirdweb/react";
  
 const dmSans = DM_Sans({ subsets: ["latin"] });
  
@@ -28,15 +29,17 @@ export default async function RootLayout({
       <body className={dmSans.className}>
         <Toaster />
         <OktoClientProvider>
-          <ReactQueryProvider>
-            <OnchainKitClient>
-              <AppProvider session={session}>
-                <CampaignProvider>
-                  {children}
-                </CampaignProvider>
-              </AppProvider>
-            </OnchainKitClient>
-          </ReactQueryProvider>
+          <ThirdwebProvider>
+              <ReactQueryProvider>
+                <OnchainKitClient>
+                  <AppProvider session={session}>
+                  <CampaignProvider>
+                    {children}
+                  </CampaignProvider>
+                </AppProvider>
+              </OnchainKitClient>
+            </ReactQueryProvider>
+          </ThirdwebProvider>
         </OktoClientProvider>
       </body>
     </html>

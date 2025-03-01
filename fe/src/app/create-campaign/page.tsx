@@ -95,9 +95,12 @@ export default function CreateCampaignPage() {
         description,
         recipient: recipientAddress as `0x${string}`,
         deadline: deadlineTimestamp,      
-        goal: selectedType === CampaignType.Goal ? BigInt(parseFloat(goalAmount) * 1e18) : BigInt(0),
-        maxDonors: selectedType === CampaignType.PerPerson ? parseInt(maxDonors) : 0,
+        goal: selectedType === CampaignType.Goal ? BigInt(parseFloat(goalAmount) * 1e18) : 0n,
+        maxDonors: selectedType === CampaignType.PerPerson ? BigInt(parseInt(maxDonors)) : 0n,
       });
+
+      // Wait for 5 seconds to allow transaction to process
+      await new Promise(resolve => setTimeout(resolve, 10000));
       
       const order = await getRawTransactionOrder(oktoClient, jobId);
       console.log('Order Status:', order);

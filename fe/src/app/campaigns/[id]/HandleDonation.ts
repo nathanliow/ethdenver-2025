@@ -22,7 +22,7 @@ export const HandleDonation = async (
   // Execute the token transfer through Okto
   const transferParams = {
     amount: BigInt(Math.floor(amountInSmallestUnits)),
-    recipient: campaign.recipient as `0x${string}`,
+    recipient: NETWORK_CONFIG[selectedNetwork].contractAddress as `0x${string}`,
     token: tokenAddress as `0x${string}`,
     caip2Id: "eip155:1" // Adjust based on your network
   };
